@@ -1,0 +1,1232 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Witraq Tool - Professional</title>
+  <style>
+    :root {
+      --bg: #0d0f14;
+      --surface: #161820;
+      --surface2: #1e2028;
+      --border: #2a2d38;
+      --accent: #1a6fff;
+      --accent2: #00e5c3;
+      --text: #e2e4ed;
+      --muted: #6b7080;
+      --danger: #ff4d6a;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: Calibri, sans-serif;
+      font-size: 16px;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    header { padding: 15px 20px 0 20px; background: var(--surface); border-bottom: 1px solid var(--border); flex-shrink: 0; }
+    h1 { font-size: 28px; color: var(--accent); letter-spacing: 0.1em; margin-bottom: 12px; display: flex; align-items: center; gap: 15px; }
+    
+    .tabs { display: flex; gap: 4px; }
+    .tab-btn {
+      padding: 10px 20px; background: transparent; border: 1px solid transparent; border-bottom: none;
+      color: var(--muted); cursor: pointer; border-radius: 4px 4px 0 0; font-weight: bold; font-size: 14px; transition: all 0.2s;
+    }
+    .tab-btn.active { background: var(--bg); border-color: var(--border); color: var(--accent); margin-bottom: -1px; }
+
+    .tab-container { flex: 1; padding: 20px; overflow-y: auto; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    button { font-size: 14px; font-weight: bold; padding: 6px 14px; border: 1px solid var(--border); border-radius: 3px; background: var(--surface2); color: var(--text); cursor: pointer; }
+    button:hover { border-color: var(--accent); color: var(--accent); }
+    
+    input[type=number], input[type=text], select, textarea { background: var(--surface2); color: var(--text); border: 1px solid var(--border); border-radius: 3px; padding: 6px; }
+    label { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; display: block; margin-bottom: 4px; margin-top: 10px; }
+
+    .status-card { display: flex; align-items: center; gap: 10px; background: var(--surface); padding: 10px; border: 1px solid var(--border); border-radius: 4px; }
+    .status-value { color: var(--accent2); font-weight: bold; font-family: monospace; min-width: 65px; text-align: right; }
+
+    #btStatus svg { width: 24px; height: 24px; transition: fill 0.3s; vertical-align: middle; }
+    #btStatus.disconnected svg { fill: var(--muted); }
+    #btStatus.connected svg { fill: var(--accent2); filter: drop-shadow(0 0 4px #00e5c388); }
+
+    #output { font-family: 'Consolas', monospace; background: #08090c; border: 1px solid var(--border); padding: 15px; height: 100%; overflow-y: auto; color: #9baec8; white-space: pre-wrap; line-height: 1.4; }
+    
+    .cfg-group { background: var(--surface); border: 1px solid var(--border); border-radius: 5px; padding: 15px; margin-bottom: 15px; }
+    .cfg-title { font-size: 13px; color: var(--accent); text-transform: uppercase; font-weight: bold; margin-bottom: 15px; letter-spacing: 0.1em; border-bottom: 1px solid var(--border); padding-bottom: 8px; }
+    
+    /* Config UI Specifics */
+    .var-row { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 10px 15px; margin-bottom: 10px; }
+    .var-row span.p-lbl { font-size: 11px; color: var(--muted); min-width: 60px; font-weight: bold; }
+    .btn-rm { padding: 4px 10px; color: var(--danger); border-color: var(--danger); margin-left: auto; font-size: 16px; border-radius: 4px; }
+    
+    #measuringTimeLabel { font-size: 15px; color: var(--accent2); font-weight: bold; text-align: center; margin-top: 15px; display: block; min-height: 22px; background: #00e5c311; border-radius: 4px; line-height: 30px; }
+    #configPreview { font-family: monospace; font-size: 12px; background: var(--bg); border: 1px solid var(--border); padding: 10px; color: var(--accent2); word-break: break-all; min-height: 35px; margin-top: 5px; }
+
+    /* Global status bar */
+    #globalStatusBar {
+      display: flex; align-items: center; gap: 0;
+      background: var(--bg); border-top: 1px solid var(--border);
+      padding: 6px 20px; font-family: monospace; font-size: 16px;
+      flex-shrink: 0;
+    }
+    .gsb-item { display: flex; align-items: center; gap: 7px; padding: 0 16px; border-right: 1px solid var(--border); }
+    .gsb-item:first-child { padding-left: 0; }
+    .gsb-item:last-child  { border-right: none; }
+    .gsb-label { color: var(--muted); font-size: 13px; text-transform: uppercase; letter-spacing: 0.07em; }
+    .gsb-value { font-weight: bold; color: var(--accent2); white-space: nowrap; }
+    .gsb-value.stale  { color: var(--muted); }
+    .gsb-value.rssi-excellent { color: #00e5c3; }
+    .gsb-value.rssi-good      { color: #8de06e; }
+    .gsb-value.rssi-fair      { color: #f5a623; }
+    .gsb-value.rssi-poor      { color: #ff4d6a; }
+    .gsb-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+    .gsb-dot.rssi-excellent { background: #00e5c3; box-shadow: 0 0 5px #00e5c388; }
+    .gsb-dot.rssi-good      { background: #8de06e; }
+    .gsb-dot.rssi-fair      { background: #f5a623; }
+    .gsb-dot.rssi-poor      { background: #ff4d6a; box-shadow: 0 0 5px #ff4d6a88; }
+    .gsb-refresh { margin-left: auto; font-size: 13px; color: var(--muted); display: flex; align-items: center; gap: 5px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .gsb-spinner { display: inline-block; animation: spin 1s linear infinite; }
+
+    /* DIR file table */
+    #dirTable { width:100%; border-collapse:collapse; font-family:monospace; font-size:14px; }
+    #dirTable th {
+      text-align:left; padding:7px 12px;
+      font-size:11px; text-transform:uppercase; letter-spacing:.07em;
+      color:var(--muted); border-bottom:1px solid var(--border);
+    }
+    #dirTable td { padding:8px 12px; border-bottom:1px solid #ffffff0d; color:var(--text); }
+    #dirTable tr:last-child td { border-bottom:none; }
+    #dirTable tr:hover td { background:var(--surface2); }
+    #dirTable td.num   { color:var(--muted); }
+    #dirTable td.type  { color:var(--accent); font-weight:bold; }
+    #dirTable td.mag   { color:var(--accent2); }
+    #dirTable td.axis  { color:var(--accent2); }
+    #dirTable td.val   { color:var(--text); }
+    #dirTable td.freq  { color:var(--accent2); }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>WITRAQ TOOL <span id="btStatus" class="disconnected"><svg viewBox="0 0 24 24"><path d="M17.71 7.71L12 2h-1v7.59L6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 11 14.41V22h1l5.71-5.71-4.3-4.29 4.3-4.29zM13 5.83l1.88 1.88L13 9.59V5.83zm1.88 10.46L13 18.17v-3.76l1.88 1.88z"/></svg></span></h1>
+  <div class="tabs">
+    <button class="tab-btn active" onclick="openTab(event, 'connTab')">Status</button>
+    <button class="tab-btn" onclick="openTab(event, 'configTab')">Configuration</button>
+    <button class="tab-btn" onclick="openTab(event, 'measureTab')">Measurement</button>
+    <button class="tab-btn" onclick="openTab(event, 'graphsTab')">Graphs</button>
+    <button class="tab-btn" onclick="openTab(event, 'logTab')">Logs</button>
+  </div>
+</header>
+
+<div id="globalStatusBar">
+  <div class="gsb-item">
+    <span class="gsb-dot" id="gsbRssiDot"></span>
+    <span class="gsb-label">RSSI</span>
+    <span class="gsb-value stale" id="gsbRssi">--</span>
+  </div>
+  <div class="gsb-item">
+    <span class="gsb-label">BATTERY</span>
+    <span class="gsb-value stale" id="gsbVbat">-- <span style="font-size:10px;font-weight:normal;color:var(--muted);">(measure first)</span></span>
+  </div>
+  <div class="gsb-item">
+    <span class="gsb-label">USAGE TIME</span>
+    <span class="gsb-value stale" id="gsbTime">--</span>
+  </div>
+  <div class="gsb-item">
+    <span class="gsb-label">FREE MEM</span>
+    <span class="gsb-value stale" id="gsbMem">--</span>
+  </div>
+  <div class="gsb-refresh" id="gsbRefreshInfo"></div>
+</div>
+
+<div class="tab-container">
+  <section id="connTab" class="tab-content active">
+    <div style="display:flex; gap:10px; align-items:center; background:var(--surface); padding:20px; border-radius:5px; border:1px solid var(--border);">
+      <button id="search">Search</button>
+      <select id="deviceList" style="flex:1;"></select>
+      <button id="connect" style="background:var(--accent);">Connect</button>
+      <button id="disconnect" style="background:var(--danger); display:none;">Disconnect</button>
+    </div>
+
+
+    <div style="margin-top:20px; background:var(--surface); border:1px solid var(--border); border-radius:5px; padding:15px;">
+      <div style="font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:12px;">Device Identification</div>
+      <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px;">
+        <div><label>Serial Number</label><span id="identSerial" class="status-value">--</span></div>
+        <div><label>Hardware Version</label><span id="identHw" class="status-value">--</span></div>
+        <div><label>Model</label><span id="identModel" class="status-value">--</span></div>
+        <div><label>Firmware Description</label><span id="identFwDesc" class="status-value">--</span></div>
+        <div><label>Firmware Version</label><span id="identFwVer" class="status-value">--</span></div>
+        <div><label>Date</label><span id="identDate" class="status-value">--</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section id="configTab" class="tab-content">
+    <div class="cfg-group">
+        <div class="cfg-title">GENERAL SETTINGS</div>
+        <div style="display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:10px;">
+          <div><label>RPM</label><input type="number" id="cfg_RPM" value="1500" style="width:100%"></div>
+          <div><label>FMIN HZ</label><input type="number" id="cfg_FMIN" value="10" style="width:100%"></div>
+          <div><label>F_LOW_ENV HZ</label><input type="number" id="cfg_F_LOW_ENV" value="2000" style="width:100%"></div>
+          <div><label>F_HIGH_ENV HZ</label><input type="number" id="cfg_F_HIGH_ENV" value="5000" style="width:100%"></div>
+          <div><label>RES_MIN_ACC</label><input type="number" id="cfg_RES_MIN_ACC" value="10" style="width:100%"></div>
+          <div><label>RES_MIN_VEL</label><input type="number" id="cfg_RES_MIN_VEL" value="10" style="width:100%"></div>
+          <div><label>RES_MIN_ENV</label><input type="number" id="cfg_RES_MIN_ENV" value="10" style="width:100%"></div>
+          <div><label>RES_MIN_DIS</label><input type="number" id="cfg_RES_MIN_DIS" value="10" style="width:100%"></div>
+          <div><label>SNR_MIN_ACC</label><input type="number" id="cfg_SNR_MIN_ACC" value="1" style="width:100%"></div>
+          <div><label>SNR_MIN_VEL</label><input type="number" id="cfg_SNR_MIN_VEL" value="0" style="width:100%"></div>
+          <div><label>SNR_MIN_ENV</label><input type="number" id="cfg_SNR_MIN_ENV" value="0" style="width:100%"></div>
+          <div><label>SNR_MIN_DIS</label><input type="number" id="cfg_SNR_MIN_DIS" value="0" style="width:100%"></div>
+          <div><label>EXCL_COMP</label><input type="number" id="cfg_EXCL_COMP" value="0" style="width:100%"></div>
+        </div>
+
+        <div class="cfg-title" style="margin-top:25px;">VARIABLE SETTINGS</div>
+        <div id="varList"></div>
+        <div style="display:flex; gap:10px; margin:15px 0;">
+          <button id="btnAddVar">+ Add VAR</button>
+          <button id="btnAddBias" style="font-size:12px;">+ BIAS</button>
+          <button id="btnAddTemp" style="font-size:12px;">+ TEMP</button>
+        </div>
+
+        <label>String Preview:</label>
+        <div id="configPreview"></div>
+        
+        <button id="btnPushConfig" style="width:100%; margin-top:15px; background:var(--accent); height:45px;">Push Config</button>
+        
+        <div id="measuringTimeLabel"></div>
+    </div>
+  </section>
+
+  <section id="measureTab" class="tab-content">
+    <div style="background:var(--surface); padding:20px; border-radius:5px; border:1px solid var(--border);">
+      <button id="btnStartMeasurement" style="background:var(--accent); width:100%; height:50px; font-size:16px; letter-spacing:0.08em;">START MEASUREMENT</button>
+      <div id="measureStatus" style="margin-top:18px; font-family:monospace; font-size:14px; color:var(--accent2); min-height:24px;"></div>
+      <div id="measureResults" style="margin-top:10px; display:flex; flex-direction:column; gap:8px;"></div>
+    </div>
+  </section>
+
+  </section>
+
+  <section id="graphsTab" class="tab-content">
+    <div style="background:var(--surface); padding:20px; border-radius:5px; border:1px solid var(--border); min-height:200px;">
+      <div style="font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:0.08em; margin-bottom:12px;">DIR Files</div>
+      <div id="dirOutput" style="font-family:monospace; font-size:13px; color:var(--muted);">Waiting for measurement...</div>
+    </div>
+  </section>
+
+  <section id="logTab" class="tab-content" style="height: 100%;"><pre id="output"></pre></section>
+</div>
+
+<script>
+  function openTab(evt, t) {
+    const contents = document.getElementsByClassName("tab-content");
+    for (let i = 0; i < contents.length; i++) contents[i].classList.remove("active");
+    const buttons = document.getElementsByClassName("tab-btn");
+    for (let i = 0; i < buttons.length; i++) buttons[i].classList.remove("active");
+    document.getElementById(t).classList.add("active");
+    evt.currentTarget.classList.add("active");
+  }
+
+  let device, configChar, userChar, identChar, measureChar, valuesChar, dirChar, fileChar;
+  let measuringWaitSeconds = 5; // default, updated when Push Config receives a time
+  const CHANNELS = ['x','y','z'];
+  const VAR_TYPES = [
+    { code:'O', label:'RMS value',    p1:'Fmin', p2:'Fmax', d1:'10',  d2:'6000' },
+    { code:'C', label:'RMS-COMP',     p1:'Fmin', p2:'Fmax', d1:'10',  d2:'6000' },
+    { code:'E', label:'Envelope P-P', p1:'Res',  p2:'Fmax', d1:'2000',d2:'5000' },
+    { code:'W', label:'Waveform',     p1:'Span', p2:'Fmax', d1:'0.1', d2:'6000' },
+    { code:'F', label:'Friction',     p1:'Fmin', p2:'Fmax', d1:'100', d2:'6000' },
+    { code:'R', label:'RPM',          p1:null,   p2:null,   d1:null,  d2:null   },
+    { code:'I', label:'Impedance',    p1:'Fmin', p2:'Fmax', d1:'10',  d2:'6000' },
+  ];
+
+  const log = (msg) => {
+    const o = document.getElementById('output');
+    o.textContent += `[${new Date().toLocaleTimeString()}] ${msg}\n`;
+    o.scrollTop = o.scrollHeight;
+  };
+
+  function makeVarRow(defaults = {}) {
+    const wrap = document.createElement('div'); wrap.className = 'var-row';
+    const typeSel = document.createElement('select');
+    VAR_TYPES.forEach(vt => {
+        const o = document.createElement('option'); o.value = vt.code; o.textContent = `${vt.code} - ${vt.label}`;
+        if(defaults.code === vt.code) o.selected = true; typeSel.appendChild(o);
+    });
+
+    const chWrap = document.createElement('span');
+    CHANNELS.forEach(ch => {
+        const l = document.createElement('label'); l.style.cssText = 'display:inline-flex; align-items:center; gap:3px; margin:0 5px; text-transform:none; color:var(--text);';
+        const cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = ch;
+        if(defaults.channels?.includes(ch) || (!defaults.channels && ch === 'z')) cb.checked = true;
+        l.append(cb, ch); chWrap.appendChild(l);
+    });
+
+    const magSel = document.createElement('select');
+    [{v:'a',l:'a'},{v:'v',l:'v'},{v:'e',l:'e'},{v:'d',l:'d'}].forEach(m => {
+        const o = document.createElement('option'); o.value = m.v; o.textContent = m.l;
+        if(defaults.mag === m.v) o.selected = true; magSel.appendChild(o);
+    });
+
+    const initialVt = VAR_TYPES.find(v => v.code === (defaults.code || VAR_TYPES[0].code));
+    const p1 = document.createElement('input'); p1.type = 'text'; p1.style.width = '65px';
+    p1.value = defaults.p1 != null ? defaults.p1 : (initialVt?.d1 || '');
+    const p2 = document.createElement('input'); p2.type = 'text'; p2.style.width = '65px';
+    p2.value = defaults.p2 != null ? defaults.p2 : (initialVt?.d2 || '');
+    const p1l = document.createElement('span'); p1l.className = 'p-lbl';
+    const p2l = document.createElement('span'); p2l.className = 'p-lbl';
+    const rm = document.createElement('button'); rm.className = 'btn-rm'; rm.textContent = '✕'; 
+    rm.onclick = () => { wrap.remove(); buildConfig(); };
+
+    function updateLabels(applyDefaults = false) {
+        const vt = VAR_TYPES.find(v => v.code === typeSel.value);
+        p1.style.display = vt.p1 ? '' : 'none'; p2.style.display = vt.p2 ? '' : 'none';
+        p1l.textContent = vt.p1 || ''; p2l.textContent = vt.p2 || '';
+        p1l.style.display = vt.p1 ? '' : 'none'; p2l.style.display = vt.p2 ? '' : 'none';
+        if (applyDefaults) { p1.value = vt.d1 || ''; p2.value = vt.d2 || ''; }
+        // E type: magnitude is always e, hide the selector
+        if (typeSel.value === 'E') {
+            magSel.value = 'e';
+            magSel.style.display = 'none';
+        } else {
+            magSel.style.display = '';
+        }
+    }
+
+    [chWrap, magSel, p1, p2].forEach(el => el.addEventListener('change', buildConfig));
+    typeSel.addEventListener('change', () => { updateLabels(true); buildConfig(); });
+    p1.addEventListener('input', buildConfig); p2.addEventListener('input', buildConfig);
+
+    wrap.append(typeSel, chWrap, magSel, p1l, p1, p2l, p2, rm);
+    updateLabels(); return wrap;
+  }
+
+  function makeSpecialRow(type) {
+    const wrap = document.createElement('div'); wrap.className = 'var-row'; wrap.dataset.special = type;
+    const lbl = document.createElement('span'); lbl.style.fontSize = '14px';
+    if(type === 'bias') {
+        lbl.textContent = 'B - BIAS:';
+        CHANNELS.forEach(ch => {
+            const l = document.createElement('label'); l.style.cssText = 'display:inline-flex; align-items:center; gap:2px; margin:0 5px; text-transform:none; color:var(--text);';
+            const cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = ch; cb.checked = true;
+            l.append(cb, ch); wrap.appendChild(l);
+        });
+        wrap.addEventListener('change', buildConfig);
+    } else {
+        lbl.textContent = 'T - TEMPERATURE (Internal)'; wrap.append(lbl);
+    }
+    const rm = document.createElement('button'); rm.className = 'btn-rm'; rm.textContent = '✕';
+    rm.onclick = () => { wrap.remove(); buildConfig(); };
+    wrap.prepend(lbl); wrap.append(rm); return wrap;
+  }
+
+  function buildConfig() {
+    const hdrIds = ['cfg_RPM','cfg_FMIN','cfg_F_LOW_ENV','cfg_F_HIGH_ENV','cfg_RES_MIN_ACC','cfg_RES_MIN_VEL','cfg_RES_MIN_ENV','cfg_RES_MIN_DIS','cfg_SNR_MIN_ACC','cfg_SNR_MIN_VEL','cfg_SNR_MIN_ENV','cfg_SNR_MIN_DIS','cfg_EXCL_COMP'];
+    const hdr = hdrIds.map(id => document.getElementById(id).value).join(',');
+    const vars = [];
+    document.querySelectorAll('#varList > div').forEach(row => {
+        if(row.dataset.special === 'bias') {
+            [...row.querySelectorAll('input:checked')].forEach(c => vars.push('B'+c.value));
+        } else if(row.dataset.special === 'temp') {
+            vars.push('T');
+        } else {
+            const type = row.querySelector('select').value;
+            const mag = row.querySelectorAll('select')[1].value;
+            const p1 = row.querySelectorAll('input[type=text]')[0].value;
+            const p2 = row.querySelectorAll('input[type=text]')[1].value;
+            [...row.querySelectorAll('input:checked')].forEach(cb => {
+              vars.push(type + cb.value + mag + p1 + (p2 ? ','+p2 : ''));
+            });
+        }
+    });
+    document.getElementById('configPreview').textContent = hdr + (vars.length ? vars.join('') : '');
+  }
+
+  // ── VALUES string parser ─────────────────────────────────────────────
+  const VALUE_META = {
+    O: { label: 'RMS',             units: { a:'g', v:'mm/s', d:'um' } },
+    C: { label: 'RMS/COMP',        units: { a:'g', v:'mm/s', d:'um' } },
+    E: { label: 'Envelope P-P',    units: { e:'ge' } },
+    W: { label: 'Peak-to-Peak',    units: { a:'g', v:'mm/s', e:'ge', d:'um' } },
+    F: { label: 'Friction',        units: { a:'g' } },
+    R: { label: 'RPM',             units: { a:'Hz', v:'Hz', e:'Hz', d:'Hz' } },
+    I: { label: 'Impedance',       units: { e:'N/g' } },
+    B: { label: 'Bias',            units: { _:'g' } },
+    T: { label: 'Temperature',     units: { _:'°C' } },
+  };
+
+  // Reconstruct the ordered list of expected variable tokens from the current config UI,
+  // mirroring exactly what buildConfig() puts into the config string.
+  function getExpectedVars() {
+    const list = [];
+    document.querySelectorAll('#varList > div').forEach(row => {
+      if (row.dataset.special === 'bias') {
+        [...row.querySelectorAll('input:checked')].forEach(cb => {
+          list.push({ type:'B', axis: cb.value, mag: null });
+        });
+      } else if (row.dataset.special === 'temp') {
+        list.push({ type:'T', axis: null, mag: null });
+      } else {
+        const type = row.querySelector('select').value;
+        const mag  = type === 'E' ? 'e' : row.querySelectorAll('select')[1].value;
+        [...row.querySelectorAll('input:checked')].forEach(cb => {
+          list.push({ type, axis: cb.value, mag });
+        });
+      }
+    });
+    return list;
+  }
+
+  function renderParsedValues(raw) {
+    // Values arrive as comma-separated numbers
+    const nums = raw.split(',').map(s => s.trim()).filter(s => s !== '');
+    const vars = getExpectedVars();
+
+    let html = `<div style="display:grid; grid-template-columns: auto auto auto auto auto; gap:6px 20px;
+      align-items:center; background:var(--surface2); border:1px solid var(--border);
+      border-radius:4px; padding:14px 18px; font-family:monospace; font-size:14px;">`;
+
+    // Header row
+    html += `<span style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.07em;">Value</span>
+             <span style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.07em;">Axis</span>
+             <span style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.07em;">Magnitude</span>
+             <span style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.07em;">#</span>
+             <span style="color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.07em;">Result</span>`;
+
+    vars.forEach((v, i) => {
+      const meta  = VALUE_META[v.type] || { label: v.type, units: {} };
+      const unit  = v.mag ? (meta.units[v.mag] || '') : (meta.units['_'] || '');
+      const num   = nums[i] !== undefined ? nums[i] : '—';
+      const axis  = v.axis ? v.axis.toUpperCase() : '—';
+      const mag   = v.mag  ? v.mag               : '—';
+      const idx   = i + 1;
+
+      html += `<span style="color:var(--text);">${meta.label}</span>
+               <span style="color:var(--accent2);">${axis}</span>
+               <span style="color:var(--accent2);">${mag}</span>
+               <span style="color:var(--muted);">${idx}</span>
+               <span style="color:var(--accent2);font-weight:bold;">${num}<span style="font-size:11px;font-weight:normal;color:var(--muted);margin-left:4px;">${unit}</span></span>`;
+    });
+
+    // If raw has more numbers than configured vars, show remainder as unknowns
+    if (nums.length > vars.length) {
+      for (let i = vars.length; i < nums.length; i++) {
+        html += `<span style="color:var(--muted);">?</span>
+                 <span style="color:var(--muted);">—</span>
+                 <span style="color:var(--muted);">—</span>
+                 <span style="color:var(--muted);">${i+1}</span>
+                 <span style="color:var(--muted);">${nums[i]}</span>`;
+      }
+    }
+
+    html += `</div>`;
+
+    // Always show raw string at the bottom for debugging
+    html += `<div style="font-family:monospace;font-size:11px;color:var(--muted);padding:4px 2px;">
+               raw: ${raw}</div>`;
+    return html;
+  }
+  // ────────────────────────────────────────────────────────────────────
+
+  // ── DIR string parser ────────────────────────────────────────────────
+  const DIR_TYPE  = { s: 'Spectrum', w: 'Waveform' };
+  const DIR_MAG   = { a: 'Accel (a)', v: 'Velocity (v)', e: 'Envelope (e)', d: 'Displ. (d)' };
+  const DIR_AXIS  = { x: 'X', y: 'Y', z: 'Z' };
+
+  function parseDirString(raw) {
+    let files = [];
+    // Primary: extract every quoted token — immune to leading/trailing junk bytes
+    const matches = raw.match(/"([^"]+)"/g);
+    if (matches && matches.length) {
+      files = matches.map(s => s.replace(/"/g, '').trim()).filter(s => s.length > 0);
+    } else {
+      // Fallback: try JSON.parse on cleaned string
+      try {
+        const cleaned = raw.trim().replace(/^[^\[]*(\[.*\]).*$/, '$1');
+        const parsed = JSON.parse(cleaned);
+        files = Array.isArray(parsed) ? parsed.map(s => String(s).trim()).filter(s => s.length > 0) : [];
+      } catch(e) {
+        log('[DIR] Could not parse DIR string: ' + e.message);
+      }
+    }
+
+    return files.map((name, i) => {
+      // Format: <type><magnitude><axis>#<samples>#<fmax>
+      const m = name.match(/^([swSW])([avdeAVDE])([xyzXYZ])#(\d+)#([\d.]+)$/i);
+      if (!m) return { raw: name, num: i + 1, error: true };
+      return {
+        num:     i + 1,
+        raw:     name,
+        type:    m[1].toLowerCase(),
+        mag:     m[2].toLowerCase(),
+        axis:    m[3].toLowerCase(),
+        samples: parseInt(m[4]),
+        fmax:    parseFloat(m[5]),
+        error:   false,
+      };
+    });
+  }
+
+  function renderDirTable(raw) {
+    const files = parseDirString(raw);
+    window._dirFiles = files; // store for Plot button access
+    if (!files.length) return '<span style="color:var(--muted)">No files received.</span>';
+
+    let html = `<table id="dirTable">
+      <thead><tr>
+        <th>#FILE</th><th>Type</th><th>Mag</th><th>Axis</th><th>Samples</th><th>Max Freq</th><th></th>
+      </tr></thead><tbody>`;
+
+    files.forEach(f => {
+      if (f.error) {
+        html += `<tr>
+          <td class="num">${f.num}</td>
+          <td colspan="6" style="color:var(--danger); font-size:12px;">⚠ Unrecognised: ${f.raw}</td>
+        </tr>`;
+      } else {
+        const samples = Math.floor(f.samples / 4);
+        html += `<tr>
+          <td class="num">${f.num}</td>
+          <td class="type">${DIR_TYPE[f.type] ?? f.type}</td>
+          <td class="mag">${DIR_MAG[f.mag]  ?? f.mag}</td>
+          <td class="axis">${DIR_AXIS[f.axis] ?? f.axis}</td>
+          <td class="val">${samples.toLocaleString()}</td>
+          <td class="freq">${f.fmax} Hz</td>
+          <td><button class="plot-btn" data-idx="${f.num - 1}" style="padding:4px 14px;font-size:12px;background:var(--accent);color:#000;">Plot</button></td>
+        </tr>`;
+      }
+    });
+
+    html += `</tbody></table>`;
+    html += `<div style="font-size:11px;color:var(--muted);margin-top:8px;">raw: ${raw}</div>`;
+    html += `<div id="plotArea" style="margin-top:20px;"></div>`;
+    return html;
+  }
+  // ────────────────────────────────────────────────────────────────────
+
+  // ── FILE plotting ────────────────────────────────────────────────────
+  document.addEventListener('click', e => {
+    if (e.target.classList.contains('plot-btn')) {
+      const idx = parseInt(e.target.dataset.idx);
+      const f = window._dirFiles && window._dirFiles[idx];
+      if (f && fileChar) requestAndPlotFile(f);
+      else if (!fileChar) log('[FILE] FILE characteristic not connected');
+    }
+  });
+
+  async function requestAndPlotFile(f) {
+    const plotArea = document.getElementById('plotArea');
+    if (!plotArea) return;
+    const totalBytes = f.samples; // samples field from DIR is already in bytes
+    const fileName = f.raw.split('#')[0].toLowerCase();
+    const cmd = `${fileName} 0 0 ${totalBytes}`;
+    log(`[FILE] Requesting: ${cmd}`);
+    plotArea.innerHTML = `<div style="color:var(--muted);font-size:13px;font-family:monospace;">
+      ⏳ Receiving ${Math.floor(totalBytes/4).toLocaleString()} samples (${totalBytes} bytes)…<br>
+      <div id="plotProgress" style="margin-top:6px;height:4px;background:var(--border);border-radius:2px;">
+        <div id="plotProgressBar" style="height:100%;width:0%;background:var(--accent);border-radius:2px;transition:width .2s;"></div>
+      </div></div>`;
+
+    const allBytes = [];
+    let received = 0;
+
+    window._fileCollector = (buf) => {
+      const bytes = new Uint8Array(buf);
+      for (const b of bytes) allBytes.push(b);
+      received += bytes.length;
+      const pct = Math.min(100, (received / totalBytes) * 100);
+      const bar = document.getElementById('plotProgressBar');
+      if (bar) bar.style.width = pct + '%';
+      log(`[FILE] ${received}/${totalBytes} bytes`);
+
+      if (received >= totalBytes) {
+        window._fileCollector = null;
+        const floats = parseFloats(allBytes);
+        log(`[FILE] Complete — ${floats.length} floats`);
+        drawPlot(plotArea, floats, f);
+      }
+    };
+
+    await fileChar.writeValue(new TextEncoder().encode(cmd));
+  }
+
+  function parseFloats(bytes) {
+    const count = Math.floor(bytes.length / 4);
+    const buf = new ArrayBuffer(count * 4);
+    const view = new DataView(buf);
+    for (let i = 0; i < count * 4; i++) view.setUint8(i, bytes[i]);
+    const floats = [];
+    for (let i = 0; i < count; i++) floats.push(view.getFloat32(i * 4, true)); // little-endian
+    return floats;
+  }
+
+  function drawPlot(container, floats, f) {
+    const MAG_UNITS = { a:'g', v:'mm/s', e:'ge', d:'um' };
+    const units  = MAG_UNITS[f.mag] || '';
+    const xLabel = f.type === 's' ? 'Frequency (Hz)' : 'Time (s)';
+    const title  = `${DIR_TYPE[f.type] ?? f.type} — ${f.axis.toUpperCase()} axis — ${units}`;
+    const fmax   = f.fmax;
+    const n      = floats.length;
+    const xFull  = floats.map((_, i) => f.type === 's' ? (i * fmax / n) : (i / fmax));
+    const yFull  = floats;
+    const xFullMin = xFull[0], xFullMax = xFull[n-1];
+    const yFullMin = Math.min(...yFull), yFullMax = Math.max(...yFull);
+
+    // ── Inject CSS once ──
+    if (!document.getElementById('plotStyle')) {
+      const s = document.createElement('style');
+      s.id = 'plotStyle';
+      s.textContent = `
+        .plot-wrap { position:relative; font-family:monospace; }
+        .plot-toolbar { display:flex; gap:6px; align-items:center; margin-bottom:6px; flex-wrap:wrap; }
+        .plot-btn { padding:3px 10px; font-size:12px; border-radius:3px; cursor:pointer;
+                    background:var(--surface2); color:var(--text); border:1px solid var(--border); }
+        .plot-btn.active { background:var(--accent); color:#000; border-color:var(--accent); }
+        .plot-canvas { display:block; width:100%; background:var(--surface2);
+                       border-radius:4px; border:1px solid var(--border); cursor:crosshair; }
+        .plot-info { font-size:11px; color:var(--muted); margin-top:4px; display:flex; gap:16px; }
+        .plot-cursor-box { font-size:12px; color:var(--accent2); background:var(--surface2);
+                           border:1px solid var(--border); border-radius:3px;
+                           padding:2px 8px; min-width:220px; }
+      `;
+      document.head.appendChild(s);
+    }
+
+    // ── HTML scaffold ──
+    container.innerHTML = `
+      <div class="plot-wrap" id="pw">
+        <div style="font-size:13px;color:var(--accent2);margin-bottom:6px;">${title}</div>
+        <div class="plot-toolbar">
+          <button class="plot-btn active" id="tb-zoom">Zoom</button>
+          <button class="plot-btn" id="tb-pan">Pan</button>
+          <button class="plot-btn" id="tb-cur1">Cursor A</button>
+          <button class="plot-btn" id="tb-cur2">Cursor B</button>
+          <button class="plot-btn" id="tb-fit">Fit</button>
+          <button class="plot-btn" id="tb-zx">Zoom X</button>
+          <button class="plot-btn" id="tb-zy">Zoom Y</button>
+          <span class="plot-cursor-box" id="tb-readout">hover to read</span>
+        </div>
+        <canvas class="plot-canvas" id="plotCanvas" height="320"></canvas>
+        <div class="plot-info">
+          <span>${n.toLocaleString()} samples &middot; fmax ${fmax} Hz</span>
+          <span id="plot-zoom-info"></span>
+        </div>
+      </div>`;
+
+    const canvas  = document.getElementById('plotCanvas');
+    const ctx     = canvas.getContext('2d');
+    const readout = document.getElementById('tb-readout');
+    const zoomInfo= document.getElementById('plot-zoom-info');
+
+    // ── View state ──
+    let vxMin = xFullMin, vxMax = xFullMax;
+    let vyMin = yFullMin, vyMax = yFullMax;
+    const PAD = { l:64, r:16, t:16, b:44 };
+
+    // ── Cursors ──
+    let cursors = { A: null, B: null }; // x data-coords
+
+    // ── Interaction mode ──
+    let mode = 'zoom'; // zoom | pan | cur1 | cur2
+    let zoomAxis = 'xy'; // xy | x | y
+
+    // ── Tool buttons ──
+    const modeButtons = {
+      zoom: document.getElementById('tb-zoom'),
+      pan:  document.getElementById('tb-pan'),
+      cur1: document.getElementById('tb-cur1'),
+      cur2: document.getElementById('tb-cur2'),
+    };
+    function setMode(m) {
+      mode = m;
+      Object.entries(modeButtons).forEach(([k, b]) => b.classList.toggle('active', k === m));
+    }
+    document.getElementById('tb-zoom').onclick = () => { setMode('zoom'); zoomAxis='xy'; };
+    document.getElementById('tb-pan').onclick  = () => setMode('pan');
+    document.getElementById('tb-cur1').onclick = () => setMode('cur1');
+    document.getElementById('tb-cur2').onclick = () => setMode('cur2');
+    document.getElementById('tb-zx').onclick   = () => { setMode('zoom'); zoomAxis='x'; };
+    document.getElementById('tb-zy').onclick   = () => { setMode('zoom'); zoomAxis='y'; };
+    document.getElementById('tb-fit').onclick  = () => {
+      vxMin=xFullMin; vxMax=xFullMax; vyMin=yFullMin; vyMax=yFullMax;
+      cursors={A:null,B:null}; render();
+    };
+
+    // ── Coord helpers ──
+    function iW() { return canvas.width  - PAD.l - PAD.r; }
+    function iH() { return canvas.height - PAD.t - PAD.b; }
+    function dataToCanvasX(x) { return PAD.l + ((x-vxMin)/(vxMax-vxMin)) * iW(); }
+    function dataToCanvasY(y) { return PAD.t + iH() - ((y-vyMin)/(vyMax-vyMin)) * iH(); }
+    function canvasToDataX(cx) { return vxMin + ((cx-PAD.l)/iW()) * (vxMax-vxMin); }
+    function canvasToDataY(cy) { return vyMin + (1-(cy-PAD.t)/iH()) * (vyMax-vyMin); }
+    function clamp(v,lo,hi) { return Math.max(lo, Math.min(hi, v)); }
+
+    // ── Nice tick generator ──
+    function niceTicks(lo, hi, count) {
+      const range = hi - lo;
+      const step  = Math.pow(10, Math.floor(Math.log10(range / count)));
+      const nice  = [1,2,2.5,5,10].map(f => f*step).find(s => range/s <= count*1.5) || step;
+      const ticks = [];
+      for (let v = Math.ceil(lo/nice)*nice; v <= hi + nice*1e-9; v += nice)
+        ticks.push(parseFloat(v.toPrecision(10)));
+      return ticks;
+    }
+
+    // ── Render ──
+    function render() {
+      // Resize canvas to its CSS pixel size
+      const dpr = window.devicePixelRatio || 1;
+      const rect = canvas.getBoundingClientRect();
+      canvas.width  = rect.width  * dpr;
+      canvas.height = 320 * dpr;
+      ctx.scale(dpr, dpr);
+      const cW = rect.width, cH = 320;
+
+      // Background
+      ctx.clearRect(0, 0, cW, cH);
+
+      const pl=PAD.l, pr=PAD.r, pt=PAD.t, pb=PAD.b;
+      const w = cW-pl-pr, h = cH-pt-pb;
+
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(pl, pt, w, h);
+      ctx.clip();
+
+      // Grid
+      ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--border').trim() || '#333';
+      ctx.lineWidth = 1;
+      const xTicks = niceTicks(vxMin, vxMax, 6);
+      const yTicks = niceTicks(vyMin, vyMax, 5);
+
+      xTicks.forEach(v => {
+        const x = pl + ((v-vxMin)/(vxMax-vxMin))*w;
+        ctx.setLineDash([3,3]); ctx.beginPath(); ctx.moveTo(x,pt); ctx.lineTo(x,pt+h); ctx.stroke();
+      });
+      yTicks.forEach(v => {
+        const y = pt + h - ((v-vyMin)/(vyMax-vyMin))*h;
+        ctx.setLineDash([3,3]); ctx.beginPath(); ctx.moveTo(pl,y); ctx.lineTo(pl+w,y); ctx.stroke();
+      });
+      ctx.setLineDash([]);
+
+      // Signal
+      const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim() || '#00e5c3';
+      ctx.strokeStyle = accentColor;
+      ctx.lineWidth = 1.5;
+      ctx.beginPath();
+      // Only draw points in view, step for performance
+      const step = Math.max(1, Math.floor(n / (w * 2)));
+      let first = true;
+      for (let i = 0; i < n; i += step) {
+        const cx = pl + ((xFull[i]-vxMin)/(vxMax-vxMin))*w;
+        const cy = pt + h - ((yFull[i]-vyMin)/(vyMax-vyMin))*h;
+        if (first) { ctx.moveTo(cx,cy); first=false; } else ctx.lineTo(cx,cy);
+      }
+      ctx.stroke();
+
+      // Cursors
+      ['A','B'].forEach((k, ki) => {
+        if (cursors[k] === null) return;
+        const cx = pl + ((cursors[k]-vxMin)/(vxMax-vxMin))*w;
+        ctx.strokeStyle = ki===0 ? '#f5a623' : '#ff4d6a';
+        ctx.lineWidth = 1.5;
+        ctx.setLineDash([4,3]);
+        ctx.beginPath(); ctx.moveTo(cx,pt); ctx.lineTo(cx,pt+h); ctx.stroke();
+        ctx.setLineDash([]);
+        // Label
+        ctx.fillStyle = ki===0 ? '#f5a623' : '#ff4d6a';
+        ctx.font = 'bold 11px monospace';
+        ctx.fillText(k, cx+3, pt+12);
+      });
+
+      // Zoom rect (drawn separately in mousemove)
+
+      ctx.restore();
+
+      // Axes border
+      ctx.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue('--border').trim() || '#333';
+      ctx.lineWidth = 1;
+      ctx.setLineDash([]);
+      ctx.strokeRect(pl, pt, w, h);
+
+      // Tick labels
+      const mutedColor = getComputedStyle(document.documentElement).getPropertyValue('--muted').trim() || '#888';
+      ctx.fillStyle = mutedColor;
+      ctx.font = '10px monospace';
+      xTicks.forEach(v => {
+        const x = pl + ((v-vxMin)/(vxMax-vxMin))*w;
+        const lbl = Math.abs(v) >= 1000 ? v.toExponential(1) : v.toPrecision(4).replace(/\.?0+$/,'');
+        ctx.textAlign = 'center';
+        ctx.fillText(lbl, x, pt+h+13);
+      });
+      yTicks.forEach(v => {
+        const y = pt + h - ((v-vyMin)/(vyMax-vyMin))*h;
+        const lbl = Math.abs(v) >= 10000 ? v.toExponential(1) : v.toPrecision(4).replace(/\.?0+$/,'');
+        ctx.textAlign = 'right';
+        ctx.fillText(lbl, pl-5, y+4);
+      });
+
+      // Axis labels
+      ctx.fillStyle = mutedColor;
+      ctx.font = '11px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(xLabel, pl+w/2, pt+h+30);
+      ctx.save(); ctx.translate(12, pt+h/2); ctx.rotate(-Math.PI/2);
+      ctx.fillText(units, 0, 0); ctx.restore();
+
+      // Cursor readout
+      updateCursorReadout();
+
+      // Zoom info
+      const xSpan = vxMax - vxMin;
+      const xFull2= xFullMax - xFullMin;
+      zoomInfo.textContent = xSpan < xFull2 * 0.99
+        ? `Zoom: ${vxMin.toFixed(2)} – ${vxMax.toFixed(2)} ${xLabel}`
+        : '';
+    }
+
+    // ── Cursor value readout ──
+    function nearestY(xVal) {
+      const i = Math.round((xVal - xFull[0]) / (xFull[1]-xFull[0]));
+      return yFull[clamp(i, 0, n-1)];
+    }
+    function updateCursorReadout() {
+      const parts = [];
+      if (cursors.A !== null) {
+        const y = nearestY(cursors.A);
+        parts.push(`A: ${cursors.A.toFixed(3)} / ${y.toFixed(4)} ${units}`);
+      }
+      if (cursors.B !== null) {
+        const y = nearestY(cursors.B);
+        parts.push(`B: ${cursors.B.toFixed(3)} / ${y.toFixed(4)} ${units}`);
+        if (cursors.A !== null) {
+          const dx = Math.abs(cursors.B - cursors.A);
+          const dyv = Math.abs(nearestY(cursors.B) - nearestY(cursors.A));
+          parts.push(`|AB|: dx=${dx.toFixed(3)} dy=${dyv.toFixed(4)}`);
+        }
+      }
+      readout.textContent = parts.length ? parts.join('  |  ') : 'hover to read';
+    }
+
+    // ── Mouse interaction ──
+    let drag = null; // { startX, startY, vx0, vx1, vy0, vy1 }
+
+    function evPos(e) {
+      const r = canvas.getBoundingClientRect();
+      return { x: e.clientX - r.left, y: e.clientY - r.top };
+    }
+    function inPlot(p) {
+      return p.x >= PAD.l && p.x <= canvas.getBoundingClientRect().width - PAD.r &&
+             p.y >= PAD.t && p.y <= 320 - PAD.b;
+    }
+
+    canvas.addEventListener('mousedown', e => {
+      const p = evPos(e);
+      if (!inPlot(p)) return;
+      if (mode === 'cur1' || mode === 'cur2') {
+        const key = mode === 'cur1' ? 'A' : 'B';
+        cursors[key] = clamp(canvasToDataX(p.x), xFullMin, xFullMax);
+        render(); return;
+      }
+      drag = { startX: p.x, startY: p.y, vx0: vxMin, vx1: vxMax, vy0: vyMin, vy1: vyMax };
+      e.preventDefault();
+    });
+
+    canvas.addEventListener('mousemove', e => {
+      const p = evPos(e);
+      // Live hover readout
+      if (inPlot(p)) {
+        const xv = canvasToDataX(p.x);
+        const yv = nearestY(xv);
+        readout.textContent = `x: ${xv.toFixed(3)}  y: ${yv.toFixed(4)} ${units}`;
+      }
+      if (!drag) return;
+      const dx = p.x - drag.startX;
+      const dy = p.y - drag.startY;
+
+      if (mode === 'pan') {
+        const xSpan = drag.vx1 - drag.vx0;
+        const ySpan = drag.vy1 - drag.vy0;
+        const cw = canvas.getBoundingClientRect().width;
+        const dxData = -(dx / (cw - PAD.l - PAD.r)) * xSpan;
+        const dyData =  (dy / (320 - PAD.t - PAD.b)) * ySpan;
+        vxMin = drag.vx0 + dxData; vxMax = drag.vx1 + dxData;
+        vyMin = drag.vy0 + dyData; vyMax = drag.vy1 + dyData;
+        render();
+      } else if (mode === 'zoom') {
+        // Draw rubber-band rect
+        render();
+        const x1 = Math.min(drag.startX, p.x), x2 = Math.max(drag.startX, p.x);
+        const y1 = Math.min(drag.startY, p.y), y2 = Math.max(drag.startY, p.y);
+        ctx.save();
+        ctx.strokeStyle = '#f5a623'; ctx.lineWidth = 1; ctx.setLineDash([4,3]);
+        if (zoomAxis === 'xy') ctx.strokeRect(x1, y1, x2-x1, y2-y1);
+        else if (zoomAxis === 'x') { ctx.beginPath(); ctx.moveTo(x1, PAD.t); ctx.lineTo(x1, 320-PAD.b); ctx.moveTo(x2, PAD.t); ctx.lineTo(x2, 320-PAD.b); ctx.stroke(); }
+        else if (zoomAxis === 'y') { ctx.beginPath(); ctx.moveTo(PAD.l, y1); ctx.lineTo(canvas.getBoundingClientRect().width-PAD.r, y1); ctx.moveTo(PAD.l, y2); ctx.lineTo(canvas.getBoundingClientRect().width-PAD.r, y2); ctx.stroke(); }
+        ctx.restore();
+      }
+    });
+
+    canvas.addEventListener('mouseup', e => {
+      if (!drag || mode !== 'zoom') { drag=null; return; }
+      const p = evPos(e);
+      const dx = Math.abs(p.x - drag.startX);
+      const dy = Math.abs(p.y - drag.startY);
+      if (dx > 5 || dy > 5) {
+        const x1 = Math.min(drag.startX, p.x), x2 = Math.max(drag.startX, p.x);
+        const y1 = Math.min(drag.startY, p.y), y2 = Math.max(drag.startY, p.y);
+        if (zoomAxis !== 'y') { vxMin = canvasToDataX(x1); vxMax = canvasToDataX(x2); }
+        if (zoomAxis !== 'x') { vyMin = canvasToDataY(y2); vyMax = canvasToDataY(y1); }
+      }
+      drag = null; render();
+    });
+
+    canvas.addEventListener('mouseleave', () => { drag=null; readout.textContent='hover to read'; });
+
+    // ── Scroll wheel zoom ──
+    canvas.addEventListener('wheel', e => {
+      e.preventDefault();
+      const p = evPos(e);
+      if (!inPlot(p)) return;
+      const factor = e.deltaY > 0 ? 1.15 : 0.87;
+      const xc = canvasToDataX(p.x);
+      const yc = canvasToDataY(p.y);
+      if (zoomAxis !== 'y') { vxMin = xc + (vxMin-xc)*factor; vxMax = xc + (vxMax-xc)*factor; }
+      if (zoomAxis !== 'x') { vyMin = yc + (vyMin-yc)*factor; vyMax = yc + (vyMax-yc)*factor; }
+      render();
+    }, { passive: false });
+
+    // ── Touch pinch zoom ──
+    let touches = null;
+    canvas.addEventListener('touchstart', e => {
+      if (e.touches.length === 2) {
+        touches = { x0: e.touches[0].clientX, x1: e.touches[1].clientX, vx0:vxMin, vx1:vxMax };
+        e.preventDefault();
+      }
+    }, { passive: false });
+    canvas.addEventListener('touchmove', e => {
+      if (touches && e.touches.length === 2) {
+        const dist0 = Math.abs(touches.x1 - touches.x0);
+        const dist1 = Math.abs(e.touches[1].clientX - e.touches[0].clientX);
+        const scale = dist0 / (dist1 || 1);
+        const cx = (canvasToDataX((e.touches[0].clientX + e.touches[1].clientX)/2 - canvas.getBoundingClientRect().left));
+        vxMin = cx + (touches.vx0 - cx) * scale;
+        vxMax = cx + (touches.vx1 - cx) * scale;
+        render(); e.preventDefault();
+      }
+    }, { passive: false });
+    canvas.addEventListener('touchend', () => { touches = null; });
+
+    // ── ResizeObserver ──
+    const ro = new ResizeObserver(() => render());
+    ro.observe(canvas);
+
+    render();
+  }
+  // ────────────────────────────────────────────────────────────────────
+
+  // BLE Logic
+  document.getElementById('search').onclick = async () => {
+    try {
+        device = await navigator.bluetooth.requestDevice({ 
+            filters: [{ namePrefix: 'witraq#' }], 
+            optionalServices: ['57540001-a266-48f9-f53f-b6b876ffab89'] 
+        });
+        document.getElementById('deviceList').innerHTML = `<option>${device.name}</option>`;
+        device.addEventListener('gattserverdisconnected', onDisconnected);
+    } catch(e) { log("Selection cancelled"); }
+  };
+
+  document.getElementById('connect').onclick = async () => {
+    const btn = document.getElementById('connect');
+    btn.textContent = 'Connecting…';
+    btn.disabled = true;
+    try {
+        const server = await device.gatt.connect();
+
+        const svc = await server.getPrimaryService('57540001-a266-48f9-f53f-b6b876ffab89');
+        const chars = await svc.getCharacteristics();
+
+        // Subscribe to all notify characteristics and wait for all to complete
+        const notifyPromises = chars.map(async c => {
+            const isConfig  = c.uuid.includes('0003');
+            const isUser    = c.uuid.includes('0009');
+            const isError   = c.uuid.includes('000a');
+            const isIdent   = c.uuid.includes('0002');
+            const isMeasure = c.uuid === '57540005-a266-48f9-f53f-b6b876ffab89';
+            const isValues  = c.uuid === '57540006-a266-48f9-f53f-b6b876ffab89';
+            const isDir     = c.uuid === '57540004-a266-48f9-f53f-b6b876ffab89';
+            const isFile    = c.uuid === '57540008-a266-48f9-f53f-b6b876ffab89';
+            if(isConfig)  configChar  = c;
+            if(isUser)    userChar    = c;
+            if(isIdent)   identChar   = c;
+            if(isMeasure) measureChar = c;
+            if(isValues)  valuesChar  = c;
+            if(isDir)     dirChar     = c;
+            if(isFile)    fileChar    = c;
+
+            if(c.properties.notify) {
+              await c.startNotifications();
+              c.addEventListener('characteristicvaluechanged', (e) => {
+                  const val = new TextDecoder().decode(e.target.value);
+                  log(`[NOTIFY] ${val}`);
+
+                  if(isIdent) {
+                    try {
+                      const clean = val.replace(/[^\x20-\x7E]/g, '').trim();
+                      const arr = JSON.parse(clean);
+                      document.getElementById('identSerial').textContent  = arr[0] ?? '--';
+                      document.getElementById('identHw').textContent      = arr[1] ?? '--';
+                      document.getElementById('identModel').textContent   = arr[2] ?? '--';
+                      document.getElementById('identFwDesc').textContent  = arr[3] ?? '--';
+                      document.getElementById('identFwVer').textContent   = arr[4] ?? '--';
+                      document.getElementById('identDate').textContent    = arr[5] ?? '--';
+                    } catch(err) { log('[IDENT parse error] ' + val); }
+                  }
+
+                  if(isConfig) {
+                    const lbl = document.getElementById('measuringTimeLabel');
+                    const match = val.match(/(\d+)/);
+                    lbl.style.color = '';
+                    lbl.textContent = match ? `measuring time: ${match[1]} Sec` : val.trim();
+                    if(match) measuringWaitSeconds = parseInt(match[1]);
+                  }
+
+                  if(isValues) {
+                    // Resolve the pending VALUES promise if waiting
+                    if(window._valuesResolve) {
+                      window._valuesResolve(val);
+                      window._valuesResolve = null;
+                    }
+                  }
+
+                  if(isDir) {
+                    log('[DIR] Received: ' + val);
+                    document.getElementById('dirOutput').innerHTML = renderDirTable(val);
+                  }
+
+                  if(isFile) {
+                    const buf = e.target.value.buffer;
+                    if(window._fileCollector) {
+                      window._fileCollector(buf);
+                    }
+                  }
+
+                  if(isError) {
+                    const lbl = document.getElementById('measuringTimeLabel');
+                    const v = val.trim().toLowerCase();
+                    lbl.style.color = 'var(--danger)';
+                    if(v.includes('waveform') || v.includes('setup error')) {
+                      lbl.textContent = '\u26A0 Waveform setup error';
+                    } else if(v.includes('mem')) {
+                      lbl.textContent = '\u26A0 Not enough memory';
+                    } else {
+                      lbl.textContent = '\u26A0 ' + val.trim();
+                    }
+                  }
+
+                  if(isUser) {
+                    if(val.includes("RSSI")) {
+                      const m = val.match(/RSSI["\s:]+(-?[\d.]+)/i);
+                      if(m) { updateGsbRssi(parseFloat(m[1])); console.log('[USER raw]', val); }
+                    }
+                    if(val.toLowerCase().includes("batt voltage")) {
+                      const m = val.match(/batt Voltage["\s:]+(\d+)/i);
+                      if(m) { updateGsbVbat(parseInt(m[1])); console.log('[USER raw]', val); }
+                    }
+                    if(val.includes("seconds")) {
+                      const s = val.match(/seconds":\s*(\d+)/);
+                      if(s) { updateGsbTime(parseInt(s[1])); console.log('[USER raw]', val); }
+                    }
+                    if(val.includes("AVAILABLE MEM")) {
+                      const m = val.match(/AVAILABLE MEM["\s:]+(\d+)/i);
+                      if(m) { updateGsbMem(parseInt(m[1])); console.log('[USER raw]', val); }
+                    }
+                  }
+              });
+            }
+        });
+
+        await Promise.all(notifyPromises);
+        log('[BLE] All notifications subscribed');
+
+        // Now safe to update UI
+        document.getElementById('btStatus').className = "connected";
+        document.getElementById('connect').style.display = 'none';
+        document.getElementById('disconnect').style.display = 'inline-block';
+
+        // Request device identification
+        if(identChar) {
+          try {
+            await identChar.writeValue(new TextEncoder().encode(''));
+            log('[IDENT] Identification requested');
+          } catch(e) { log('[IDENT] Write error: ' + e); }
+        }
+
+    } catch(e) { log("Connection error: " + e); btn.textContent = 'Connect'; btn.disabled = false; }
+  };
+
+  function onDisconnected() {
+    document.getElementById('btStatus').className = "disconnected";
+    document.getElementById('connect').style.display = 'inline-block';
+    document.getElementById('connect').textContent = 'Connect';
+    document.getElementById('connect').disabled = false;
+    document.getElementById('disconnect').style.display = 'none';
+    document.getElementById('deviceList').innerHTML = "";
+    log("Device disconnected.");
+  }
+
+  // ── Status bar helpers ──────────────────────────────────────────────
+  function rssiClass(dbm) {
+    if (dbm > -60)  return 'rssi-excellent';
+    if (dbm > -75)  return 'rssi-good';
+    if (dbm > -85)  return 'rssi-fair';
+    return 'rssi-poor';
+  }
+
+  function updateGsbRssi(dbm) {
+    const v = document.getElementById('gsbRssi');
+    const d = document.getElementById('gsbRssiDot');
+    const cls = rssiClass(dbm);
+    v.textContent = dbm + ' dBm';
+    v.className = 'gsb-value ' + cls;
+    d.className  = 'gsb-dot '  + cls;
+  }
+
+  function updateGsbVbat(mv) {
+    const v = document.getElementById('gsbVbat');
+    v.innerHTML = (mv / 1000).toFixed(3) + ' V';
+    v.className = 'gsb-value';
+  }
+
+  function updateGsbTime(seconds) {
+    const v = document.getElementById('gsbTime');
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    v.textContent = h > 0
+      ? `${h}h ${String(m).padStart(2,'0')}m`
+      : `${m}m ${String(s).padStart(2,'0')}s`;
+    v.className = 'gsb-value';
+  }
+
+  function updateGsbMem(bytes) {
+    const v = document.getElementById('gsbMem');
+    v.textContent = bytes >= 1024 ? (bytes / 1024).toFixed(1) + ' KB' : bytes + ' B';
+    v.className = 'gsb-value';
+  }
+
+  async function refreshStatusBar() {
+    const info = document.getElementById('gsbRefreshInfo');
+    info.innerHTML = '<span class="gsb-spinner">↻</span> refreshing...';
+    const enc = new TextEncoder();
+    try {
+      await userChar.writeValue(enc.encode('getrssi'));
+      await new Promise(r => setTimeout(r, 400));
+      await userChar.writeValue(enc.encode('getvbat'));
+      await new Promise(r => setTimeout(r, 400));
+      await userChar.writeValue(enc.encode('gettime'));
+      await new Promise(r => setTimeout(r, 400));
+      await userChar.writeValue(enc.encode('getmem'));
+      const now = new Date().toLocaleTimeString();
+      info.textContent = 'updated ' + now;
+      log('[STATUS] Status bar refreshed');
+    } catch(e) {
+      info.textContent = 'refresh failed';
+      log('[STATUS] Refresh error: ' + e);
+    }
+  }
+  // ────────────────────────────────────────────────────────────────────
+
+  document.getElementById('disconnect').onclick = () => { if(device) device.gatt.disconnect(); };
+
+  document.getElementById('btnPushConfig').onclick = () => {
+    document.getElementById('measuringTimeLabel').textContent = "Syncing with device...";
+    configChar.writeValue(new TextEncoder().encode(document.getElementById('configPreview').textContent));
+  };
+
+  document.getElementById('btnStartMeasurement').onclick = async () => {
+    const btn = document.getElementById('btnStartMeasurement');
+    const statusEl = document.getElementById('measureStatus');
+    const resultsEl = document.getElementById('measureResults');
+
+    btn.disabled = true;
+    btn.style.opacity = '0.5';
+    resultsEl.innerHTML = '';
+
+    const enc = new TextEncoder();
+    const waitMs = (measuringWaitSeconds + 1) * 1000;
+
+    try {
+      // 3.1 Send empty string to MEASURE characteristic
+      statusEl.textContent = '⏳ Starting measurement...';
+      log('[MEASURE] Sending trigger to MEASURE characteristic');
+      await measureChar.writeValue(enc.encode(''));
+
+      // 3.2 Wait measuring time + 1 second
+      statusEl.textContent = `⏳ Measuring... (${measuringWaitSeconds + 1}s)`;
+      log(`[MEASURE] Waiting ${measuringWaitSeconds + 1}s`);
+      await new Promise(r => setTimeout(r, waitMs));
+
+      // Auto-refresh status bar after measurement delay
+      refreshStatusBar();
+
+      // Send empty string to DIR characteristic
+      if(dirChar) {
+        log('[DIR] Requesting DIR data');
+        document.getElementById('dirOutput').textContent = 'Waiting for data...';
+        await dirChar.writeValue(new TextEncoder().encode(''));
+      }
+
+      // 3.3 Send empty string to VALUES characteristic
+      statusEl.textContent = '⏳ Requesting values...';
+      log('[MEASURE] Sending trigger to VALUES characteristic');
+
+      // 3.4 Set up promise to capture the VALUES notification
+      const valuesPromise = new Promise((resolve, reject) => {
+        window._valuesResolve = resolve;
+        setTimeout(() => { window._valuesResolve = null; reject(new Error('Timeout waiting for VALUES')); }, 10000);
+      });
+
+      await valuesChar.writeValue(enc.encode(''));
+
+      // 3.4 Wait for VALUES notification
+      const valuesData = await valuesPromise;
+      log('[MEASURE] Values received: ' + valuesData);
+      resultsEl.innerHTML = renderParsedValues(valuesData);
+
+      statusEl.textContent = '✅ Measurement complete';
+      log('[MEASURE] Sequence complete');
+    } catch(e) {
+      statusEl.textContent = '❌ Error: ' + e.message;
+      log('[MEASURE] Error: ' + e);
+    }
+
+    btn.disabled = false;
+    btn.style.opacity = '';
+  };
+
+  document.getElementById('btnAddVar').onclick = () => { document.getElementById('varList').append(makeVarRow()); buildConfig(); };
+  document.getElementById('btnAddBias').onclick = () => { document.getElementById('varList').append(makeSpecialRow('bias')); buildConfig(); };
+  document.getElementById('btnAddTemp').onclick = () => { document.getElementById('varList').append(makeSpecialRow('temp')); buildConfig(); };
+
+  document.querySelectorAll('input[type=number]').forEach(i => i.addEventListener('input', buildConfig));
+  
+  // Seed initial rows
+  (function init() {
+    const l = document.getElementById('varList');
+    l.append(makeVarRow({code:'O',channels:['z'],mag:'a',p1:'10',p2:'6000'}));
+    l.append(makeVarRow({code:'F',channels:['z'],mag:'a',p1:'100',p2:'6000'}));
+    l.append(makeSpecialRow('bias'));
+    buildConfig();
+  })();
+</script>
+</body>
+</html>
