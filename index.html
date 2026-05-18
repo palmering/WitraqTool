@@ -1,0 +1,1916 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Witraq Tool</title>
+  <style>
+    :root {
+      --bg:       #1a1c20;
+      --surface:  #22252b;
+      --surface2: #2a2e36;
+      --surface3: #32373f;
+      --border:   #3a3f4a;
+      --accent:   #f5c518;
+      --accent-dim: #c49a10;
+      --teal:     #00e5c3;
+      --text:     #e8eaed;
+      --muted:    #7a8090;
+      --danger:   #ff4d6a;
+      --success:  #4cde80;
+    }
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', Calibri, sans-serif;
+      font-size: 14px;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── Header ── */
+    header {
+      padding: 0 20px;
+      background: var(--surface);
+      border-bottom: 2px solid var(--accent);
+      flex-shrink: 0;
+      display: flex;
+      align-items: stretch;
+    }
+    h1 {
+      font-size: 20px;
+      font-weight: 900;
+      color: var(--accent);
+      letter-spacing: 0.12em;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 20px 12px 0;
+      border-right: 1px solid var(--border);
+      margin-right: 4px;
+      flex-shrink: 0;
+    }
+    #btStatus svg { width: 18px; height: 18px; transition: fill 0.3s; vertical-align: middle; }
+    #btStatus.disconnected svg { fill: var(--muted); }
+    #btStatus.connected svg    { fill: var(--teal); filter: drop-shadow(0 0 4px #00e5c388); }
+
+    /* ── Tabs in header ── */
+    .tabs { display: flex; gap: 0; flex: 1; }
+    .tab-btn {
+      padding: 0 20px;
+      background: transparent;
+      border: none;
+      border-bottom: 3px solid transparent;
+      color: var(--muted);
+      cursor: pointer;
+      font-weight: 700;
+      font-size: 13px;
+      letter-spacing: 0.04em;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+    .tab-btn:hover { color: var(--text); background: var(--surface2); }
+    .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); background: var(--surface2); }
+
+    /* ── Status bar below header ── */
+    #globalStatusBar {
+      display: flex; align-items: center; gap: 0;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      padding: 0 20px;
+      font-family: monospace;
+      font-size: 13px;
+      flex-shrink: 0;
+      height: 36px;
+    }
+    .gsb-item { display: flex; align-items: center; gap: 6px; padding: 0 16px; border-right: 1px solid var(--border); height: 100%; }
+    .gsb-item:first-child { padding-left: 0; }
+    .gsb-item:last-child  { border-right: none; }
+    .gsb-label { color: var(--muted); font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; }
+    .gsb-value { font-weight: bold; color: var(--accent); white-space: nowrap; }
+    .gsb-value.stale  { color: var(--muted); font-weight: normal; }
+    .gsb-value.rssi-excellent { color: var(--success); }
+    .gsb-value.rssi-good      { color: #8de06e; }
+    .gsb-value.rssi-fair      { color: var(--accent); }
+    .gsb-value.rssi-poor      { color: var(--danger); }
+    .gsb-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+    .gsb-dot.rssi-excellent { background: var(--success); box-shadow: 0 0 5px #4cde8088; }
+    .gsb-dot.rssi-good      { background: #8de06e; }
+    .gsb-dot.rssi-fair      { background: var(--accent); }
+    .gsb-dot.rssi-poor      { background: var(--danger); box-shadow: 0 0 5px #ff4d6a88; }
+    .gsb-refresh { margin-left: auto; font-size: 11px; color: var(--muted); display: flex; align-items: center; gap: 5px; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .gsb-spinner { display: inline-block; animation: spin 1s linear infinite; }
+
+    /* ── Tab container ── */
+    .tab-container { flex: 1; padding: 16px 20px; overflow-y: auto; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* ── Buttons ── */
+    button {
+      font-size: 13px; font-weight: 700;
+      padding: 7px 16px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--surface2);
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.15s;
+      font-family: inherit;
+    }
+    button:hover { border-color: var(--accent); color: var(--accent); }
+    .btn-primary {
+      background: var(--accent);
+      color: #111;
+      border-color: var(--accent);
+    }
+    .btn-primary:hover { background: #ffd83d; border-color: #ffd83d; color: #111; }
+
+    /* ── Inputs ── */
+    input[type=number], input[type=text], select, textarea {
+      background: var(--surface3);
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 6px 8px;
+      font-family: inherit;
+      font-size: 13px;
+      transition: border-color 0.15s;
+    }
+    input:focus, select:focus { outline: none; border-color: var(--accent); }
+    label {
+      font-size: 11px; color: var(--muted);
+      text-transform: uppercase; letter-spacing: 0.07em;
+      display: block; margin-bottom: 4px;
+    }
+
+    /* ── Status / Ident ── */
+    .status-value { color: var(--accent); font-weight: bold; font-family: monospace; }
+
+    /* ── Dashboard cards ── */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      margin-bottom: 12px;
+      overflow: hidden;
+    }
+    .card-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 16px;
+      background: var(--surface2);
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      user-select: none;
+    }
+    .card-header:hover { background: var(--surface3); }
+    .card-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--accent);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      flex: 1;
+    }
+    .card-chevron {
+      color: var(--muted);
+      font-size: 16px;
+      transition: transform 0.2s;
+    }
+    .card.collapsed .card-chevron { transform: rotate(-90deg); }
+    .card-body { padding: 16px; }
+    .card.collapsed .card-body { display: none; }
+
+    /* ── General settings grid ── */
+    .gen-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+      gap: 10px;
+    }
+    .gen-grid input { width: 100%; }
+
+    /* ── Variable rows ── */
+    .var-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--accent);
+      border-radius: 4px;
+      padding: 10px 12px;
+      margin-bottom: 8px;
+      transition: border-color 0.15s;
+    }
+    .var-row:hover { border-color: var(--accent); border-left-color: var(--accent); }
+    .var-row span.p-lbl { font-size: 11px; color: var(--muted); font-weight: bold; }
+    .btn-rm {
+      padding: 3px 8px;
+      color: var(--muted);
+      border-color: transparent;
+      background: transparent;
+      margin-left: auto;
+      font-size: 16px;
+    }
+    .btn-rm:hover { color: var(--danger); border-color: transparent; background: transparent; }
+
+    /* ── Config preview + push ── */
+    #measuringTimeLabel {
+      font-size: 13px; color: var(--teal); font-weight: bold;
+      padding: 6px 12px; background: #00e5c311;
+      border-radius: 4px; text-align: center;
+      min-height: 22px; line-height: 22px; margin-top: 10px;
+      display: block;
+    }
+    #configPreview {
+      font-family: monospace; font-size: 12px;
+      background: var(--bg); border: 1px solid var(--border);
+      padding: 10px; color: var(--teal);
+      word-break: break-all; min-height: 35px; margin-top: 8px;
+      border-radius: 4px;
+    }
+
+    /* ── Measurement tab ── */
+    #btnStartMeasurement { height: 48px; font-size: 15px; letter-spacing: 0.08em; }
+
+    /* ── Log tab ── */
+    #output {
+      font-family: 'Consolas', monospace;
+      background: #0d0f12;
+      border: 1px solid var(--border);
+      padding: 15px; height: 100%;
+      overflow-y: auto; color: #9baec8;
+      white-space: pre-wrap; line-height: 1.4;
+      border-radius: 4px;
+      font-size: 12px;
+    }
+
+    /* ── DIR table ── */
+    #dirTable { width: 100%; border-collapse: collapse; font-family: monospace; font-size: 13px; }
+    #dirTable th {
+      text-align: left; padding: 7px 12px;
+      font-size: 11px; text-transform: uppercase; letter-spacing: .07em;
+      color: var(--muted); border-bottom: 1px solid var(--border);
+    }
+    #dirTable td { padding: 8px 12px; border-bottom: 1px solid #ffffff08; color: var(--text); }
+    #dirTable tr:last-child td { border-bottom: none; }
+    #dirTable tr:hover td { background: var(--surface2); }
+    #dirTable td.num  { color: var(--muted); }
+    #dirTable td.type { color: var(--accent); font-weight: bold; }
+    #dirTable td.mag  { color: var(--teal); }
+    #dirTable td.axis { color: var(--teal); }
+    #dirTable td.val  { color: var(--text); }
+    #dirTable td.freq { color: var(--teal); }
+    .plot-btn {
+      padding: 4px 12px; font-size: 12px;
+      background: var(--accent); color: #111;
+      border: none; border-radius: 3px;
+      cursor: pointer; font-weight: 700;
+    }
+    .plot-btn:hover { background: #ffd83d; color: #111; border-color: transparent; }
+
+    /* ── Connect bar ── */
+    .connect-bar {
+      display: flex; gap: 8px; align-items: center;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px 16px;
+      margin-bottom: 12px;
+    }
+    /* ── Point form ── */
+    .point-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 14px;
+    }
+    .point-field { display: flex; flex-direction: column; gap: 4px; }
+    .point-field--wide { grid-column: 1 / -1; }
+    .point-field input, .point-field select, .point-field textarea {
+      width: 100%;
+    }
+    .point-field label { margin-bottom: 0; }
+
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>WITRAQ TOOL <span id="btStatus" class="disconnected"><svg viewBox="0 0 24 24"><path d="M17.71 7.71L12 2h-1v7.59L6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 11 14.41V22h1l5.71-5.71-4.3-4.29 4.3-4.29zM13 5.83l1.88 1.88L13 9.59V5.83zm1.88 10.46L13 18.17v-3.76l1.88 1.88z"/></svg></span></h1>
+  <div class="tabs">
+    <button class="tab-btn active" onclick="openTab(event, 'connTab')">Witraq</button>
+    <button class="tab-btn" onclick="openTab(event, 'configTab')">Configuration</button>
+    <button class="tab-btn" onclick="openTab(event, 'measureTab')">Measurement</button>
+    <button class="tab-btn" onclick="openTab(event, 'graphsTab')">Graphs</button>
+    <button class="tab-btn" onclick="openTab(event, 'pointTab')">Save</button>
+    <button class="tab-btn" onclick="openTab(event, 'logTab')">Logs</button>
+  </div>
+</header>
+
+<div id="globalStatusBar">
+  <div class="gsb-item">
+    <span class="gsb-dot" id="gsbRssiDot"></span>
+    <span class="gsb-label">RSSI</span>
+    <span class="gsb-value stale" id="gsbRssi">--</span>
+  </div>
+  <div class="gsb-item">
+    <span class="gsb-label">BATTERY</span>
+    <span class="gsb-value stale" id="gsbVbat">--</span>
+  </div>
+  <div class="gsb-item">
+    <span class="gsb-label">USAGE TIME</span>
+    <span class="gsb-value stale" id="gsbTime">--</span>
+  </div>
+  <div class="gsb-item">
+    <span class="gsb-label">FREE MEM</span>
+    <span class="gsb-value stale" id="gsbMem">--</span>
+  </div>
+  <div class="gsb-refresh" id="gsbRefreshInfo"></div>
+</div>
+
+<div class="tab-container">
+
+  <!-- ── Witraq tab ── -->
+  <section id="connTab" class="tab-content active">
+    <div class="connect-bar">
+      <button id="search">Search</button>
+      <select id="deviceList" style="flex:1;"></select>
+      <button id="connect" class="btn-primary">Connect</button>
+      <button id="disconnect" style="background:var(--danger);border-color:var(--danger);color:#fff;display:none;">Disconnect</button>
+    </div>
+
+    <div class="card">
+      <div class="card-header" onclick="toggleCard(this)">
+        <span class="card-title">Device Identification</span>
+        <span class="card-chevron">▾</span>
+      </div>
+      <div class="card-body">
+        <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:12px;">
+          <div><label>Serial Number</label><span id="identSerial" class="status-value">--</span></div>
+          <div><label>Hardware Version</label><span id="identHw" class="status-value">--</span></div>
+          <div><label>Model</label><span id="identModel" class="status-value">--</span></div>
+          <div><label>Firmware Description</label><span id="identFwDesc" class="status-value">--</span></div>
+          <div><label>Firmware Version</label><span id="identFwVer" class="status-value">--</span></div>
+          <div><label>Date</label><span id="identDate" class="status-value">--</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Configuration tab ── -->
+  <section id="configTab" class="tab-content">
+
+    <div class="card">
+      <div class="card-header" onclick="toggleCard(this)">
+        <span class="card-title">⚙ General Settings</span>
+        <span class="card-chevron">▾</span>
+      </div>
+      <div class="card-body">
+        <div class="gen-grid">
+          <div><label>RPM</label><input type="number" id="cfg_RPM" value="1500"></div>
+          <div><label>FMIN HZ</label><input type="number" id="cfg_FMIN" value="10"></div>
+          <div><label>F_LOW_ENV HZ</label><input type="number" id="cfg_F_LOW_ENV" value="2000"></div>
+          <div><label>F_HIGH_ENV HZ</label><input type="number" id="cfg_F_HIGH_ENV" value="5000"></div>
+          <div><label>RES_MIN_ACC</label><input type="number" id="cfg_RES_MIN_ACC" value="10"></div>
+          <div><label>RES_MIN_VEL</label><input type="number" id="cfg_RES_MIN_VEL" value="10"></div>
+          <div><label>RES_MIN_ENV</label><input type="number" id="cfg_RES_MIN_ENV" value="10"></div>
+          <div><label>RES_MIN_DIS</label><input type="number" id="cfg_RES_MIN_DIS" value="10"></div>
+          <div><label>SNR_MIN_ACC</label><input type="number" id="cfg_SNR_MIN_ACC" value="1"></div>
+          <div><label>SNR_MIN_VEL</label><input type="number" id="cfg_SNR_MIN_VEL" value="0"></div>
+          <div><label>SNR_MIN_ENV</label><input type="number" id="cfg_SNR_MIN_ENV" value="0"></div>
+          <div><label>SNR_MIN_DIS</label><input type="number" id="cfg_SNR_MIN_DIS" value="0"></div>
+          <div><label>EXCL_COMP</label><input type="number" id="cfg_EXCL_COMP" value="0"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header" onclick="toggleCard(this)">
+        <span class="card-title">📊 Variable Settings</span>
+        <span class="card-chevron">▾</span>
+      </div>
+      <div class="card-body">
+        <div id="varList"></div>
+        <div style="display:flex; gap:8px; margin-top:4px;">
+          <button id="btnAddVar">+ Add Variable</button>
+          <button id="btnAddBias">+ Bias</button>
+          <button id="btnAddTemp">+ Temp</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header" onclick="toggleCard(this)">
+        <span class="card-title">📡 Config String</span>
+        <span class="card-chevron">▾</span>
+      </div>
+      <div class="card-body">
+        <label>String Preview</label>
+        <div id="configPreview"></div>
+        <div id="measuringTimeLabel"></div>
+        <button id="btnPushConfig" class="btn-primary" style="width:100%; margin-top:12px; height:42px; font-size:14px;">Push Config</button>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ── Measurement tab ── -->
+  <section id="measureTab" class="tab-content">
+    <div class="card">
+      <div class="card-body">
+        <div style="display:flex; gap:10px;">
+          <button id="btnStartMeasurement" class="btn-primary" style="flex:1;">START MEASUREMENT</button>
+        </div>
+        <div id="measureStatus" style="margin-top:14px; font-family:monospace; font-size:13px; color:var(--teal); min-height:20px;"></div>
+        <div id="measureResults" style="margin-top:12px; display:grid; grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); gap:10px;"></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Graphs tab ── -->
+  <section id="graphsTab" class="tab-content">
+    <div class="card">
+      <div class="card-header" onclick="toggleCard(this)">
+        <span class="card-title">📈 TIME / FREQUENCY SIGNALS</span>
+        <span class="card-chevron">▾</span>
+      </div>
+      <div class="card-body">
+        <div id="dirOutput" style="font-family:monospace; font-size:13px; color:var(--muted);">Waiting for measurement...</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Point tab ── -->
+  <section id="pointTab" class="tab-content">
+
+    <div class="card">
+      <div class="card-header" onclick="toggleCard(this)">
+        <span class="card-title">📍 Measurement Point</span>
+        <span class="card-chevron">▾</span>
+      </div>
+      <div class="card-body">
+        <div class="point-grid">
+
+          <div class="point-field">
+            <label>Company</label>
+            <input type="text" id="pt_company" placeholder="e.g. Acme Corp">
+          </div>
+
+          <div class="point-field">
+            <label>Plant</label>
+            <input type="text" id="pt_plant" placeholder="e.g. Plant 1">
+          </div>
+
+          <div class="point-field">
+            <label>Sector</label>
+            <input type="text" id="pt_sector" placeholder="e.g. Compressors">
+          </div>
+
+          <div class="point-field">
+            <label>Asset</label>
+            <input type="text" id="pt_asset" placeholder="e.g. Compressor C-01">
+          </div>
+
+          <div class="point-field">
+            <label>Point ID</label>
+            <input type="text" id="pt_pointId" placeholder="e.g. C01-DE-R">
+          </div>
+
+          <div class="point-field">
+            <label>Location</label>
+            <select id="pt_location">
+              <option value="">-- select --</option>
+              <option>Drive End</option>
+              <option>Non-Drive End</option>
+              <option>Gearbox Input</option>
+              <option>Gearbox Output</option>
+              <option>Bearing 1</option>
+              <option>Bearing 2</option>
+              <option>Bearing 3</option>
+              <option>Bearing 4</option>
+              <option>Custom</option>
+            </select>
+          </div>
+
+          <div class="point-field">
+            <label>Position</label>
+            <select id="pt_position">
+              <option value="">-- select --</option>
+              <option value="axial">Axial</option>
+              <option value="radial">Radial</option>
+              <option value="tangential">Tangential</option>
+            </select>
+          </div>
+
+          <div class="point-field point-field--wide">
+            <label>Notes</label>
+            <textarea id="pt_notes" rows="3" placeholder="Any relevant notes about this measurement point..." style="width:100%; resize:vertical;"></textarea>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-body">
+        <div style="font-size:12px; color:var(--muted); margin-bottom:14px; line-height:1.6;">
+          Saves into a folder named <code style="color:var(--accent); background:var(--surface3); padding:1px 5px; border-radius:3px;">&lt;PointID&gt;</code>. Each measurement is one self-contained <b style="color:var(--text);">YYYYMMDD_HHMMSS.json</b> — sensor info, configuration, values, and all plotted signal data.
+        </div>
+        <button id="btnPointSave" class="btn-primary" style="width:100%; height:44px; font-size:14px;">💾 Save All</button>
+        <div id="pointSaveStatus" style="margin-top:10px; font-family:monospace; font-size:12px; color:var(--teal); min-height:18px;"></div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ── Logs tab ── -->
+  <section id="logTab" class="tab-content" style="height:100%;"><pre id="output"></pre></section>
+
+</div>
+
+<script>
+  function openTab(evt, t) {
+    const contents = document.getElementsByClassName("tab-content");
+    for (let i = 0; i < contents.length; i++) contents[i].classList.remove("active");
+    const buttons = document.getElementsByClassName("tab-btn");
+    for (let i = 0; i < buttons.length; i++) buttons[i].classList.remove("active");
+    document.getElementById(t).classList.add("active");
+    evt.currentTarget.classList.add("active");
+  }
+
+  function toggleCard(header) {
+    header.closest('.card').classList.toggle('collapsed');
+  }
+
+  let device, configChar, userChar, identChar, measureChar, valuesChar, dirChar, fileChar;
+  let measuringWaitSeconds = 5;
+  let _lastValuesRaw = null;
+  let _lastMeasureTime = null;
+  const CHANNELS = ['x','y','z'];
+  const VAR_TYPES = [
+    { code:'O', label:'RMS value',    p1:'Fmin', p2:'Fmax', d1:'10',  d2:'6000' },
+    { code:'C', label:'RMS-COMP',     p1:'Fmin', p2:'Fmax', d1:'10',  d2:'6000' },
+    { code:'E', label:'Envelope P-P', p1:'Res',  p2:'Fmax', d1:'2000',d2:'5000' },
+    { code:'W', label:'Waveform',     p1:'Span', p2:'Fmax', d1:'0.1', d2:'6000' },
+    { code:'F', label:'Friction',     p1:'Fmin', p2:'Fmax', d1:'100', d2:'6000' },
+    { code:'R', label:'RPM',          p1:null,   p2:null,   d1:null,  d2:null   },
+    { code:'I', label:'Impedance',    p1:'Fmin', p2:'Fmax', d1:'10',  d2:'6000' },
+  ];
+
+  const log = (msg) => {
+    const o = document.getElementById('output');
+    o.textContent += `[${new Date().toLocaleTimeString()}] ${msg}\n`;
+    o.scrollTop = o.scrollHeight;
+  };
+
+  function makeVarRow(defaults = {}) {
+    const wrap = document.createElement('div'); wrap.className = 'var-row';
+    const typeSel = document.createElement('select');
+    VAR_TYPES.forEach(vt => {
+        const o = document.createElement('option'); o.value = vt.code; o.textContent = `${vt.code} - ${vt.label}`;
+        if(defaults.code === vt.code) o.selected = true; typeSel.appendChild(o);
+    });
+
+    const chWrap = document.createElement('span');
+    CHANNELS.forEach(ch => {
+        const l = document.createElement('label'); l.style.cssText = 'display:inline-flex; align-items:center; gap:3px; margin:0 5px; text-transform:none; color:var(--text);';
+        const cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = ch;
+        if(defaults.channels?.includes(ch) || (!defaults.channels && ch === 'z')) cb.checked = true;
+        l.append(cb, ch); chWrap.appendChild(l);
+    });
+
+    const magSel = document.createElement('select');
+    [{v:'a',l:'a'},{v:'v',l:'v'},{v:'e',l:'e'},{v:'d',l:'d'}].forEach(m => {
+        const o = document.createElement('option'); o.value = m.v; o.textContent = m.l;
+        if(defaults.mag === m.v) o.selected = true; magSel.appendChild(o);
+    });
+
+    const initialVt = VAR_TYPES.find(v => v.code === (defaults.code || VAR_TYPES[0].code));
+    const p1 = document.createElement('input'); p1.type = 'text'; p1.style.width = '65px';
+    p1.value = defaults.p1 != null ? defaults.p1 : (initialVt?.d1 || '');
+    const p2 = document.createElement('input'); p2.type = 'text'; p2.style.width = '65px';
+    p2.value = defaults.p2 != null ? defaults.p2 : (initialVt?.d2 || '');
+    const p1l = document.createElement('span'); p1l.className = 'p-lbl';
+    const p2l = document.createElement('span'); p2l.className = 'p-lbl';
+    const rm = document.createElement('button'); rm.className = 'btn-rm'; rm.textContent = '✕'; 
+    rm.onclick = () => { wrap.remove(); buildConfig(); };
+
+    function updateLabels(applyDefaults = false) {
+        const vt = VAR_TYPES.find(v => v.code === typeSel.value);
+        p1.style.display = vt.p1 ? '' : 'none'; p2.style.display = vt.p2 ? '' : 'none';
+        p1l.textContent = vt.p1 || ''; p2l.textContent = vt.p2 || '';
+        p1l.style.display = vt.p1 ? '' : 'none'; p2l.style.display = vt.p2 ? '' : 'none';
+        if (applyDefaults) { p1.value = vt.d1 || ''; p2.value = vt.d2 || ''; }
+        // E type: magnitude is always e, hide the selector
+        if (typeSel.value === 'E') {
+            magSel.value = 'e';
+            magSel.style.display = 'none';
+        } else {
+            magSel.style.display = '';
+        }
+    }
+
+    [chWrap, magSel, p1, p2].forEach(el => el.addEventListener('change', buildConfig));
+    typeSel.addEventListener('change', () => { updateLabels(true); buildConfig(); });
+    p1.addEventListener('input', buildConfig); p2.addEventListener('input', buildConfig);
+
+    wrap.append(typeSel, chWrap, magSel, p1l, p1, p2l, p2, rm);
+    updateLabels(); return wrap;
+  }
+
+  function makeSpecialRow(type) {
+    const wrap = document.createElement('div'); wrap.className = 'var-row'; wrap.dataset.special = type;
+    const lbl = document.createElement('span'); lbl.style.fontSize = '14px';
+    if(type === 'bias') {
+        lbl.textContent = 'B - BIAS:';
+        CHANNELS.forEach(ch => {
+            const l = document.createElement('label'); l.style.cssText = 'display:inline-flex; align-items:center; gap:2px; margin:0 5px; text-transform:none; color:var(--text);';
+            const cb = document.createElement('input'); cb.type = 'checkbox'; cb.value = ch; cb.checked = true;
+            l.append(cb, ch); wrap.appendChild(l);
+        });
+        wrap.addEventListener('change', buildConfig);
+    } else {
+        lbl.textContent = 'T - TEMPERATURE (Internal)'; wrap.append(lbl);
+    }
+    const rm = document.createElement('button'); rm.className = 'btn-rm'; rm.textContent = '✕';
+    rm.onclick = () => { wrap.remove(); buildConfig(); };
+    wrap.prepend(lbl); wrap.append(rm); return wrap;
+  }
+
+  function buildConfig() {
+    const hdrIds = ['cfg_RPM','cfg_FMIN','cfg_F_LOW_ENV','cfg_F_HIGH_ENV','cfg_RES_MIN_ACC','cfg_RES_MIN_VEL','cfg_RES_MIN_ENV','cfg_RES_MIN_DIS','cfg_SNR_MIN_ACC','cfg_SNR_MIN_VEL','cfg_SNR_MIN_ENV','cfg_SNR_MIN_DIS','cfg_EXCL_COMP'];
+    const hdr = hdrIds.map(id => document.getElementById(id).value).join(',');
+    const vars = [];
+    document.querySelectorAll('#varList > div').forEach(row => {
+        if(row.dataset.special === 'bias') {
+            [...row.querySelectorAll('input:checked')].forEach(c => vars.push('B'+c.value));
+        } else if(row.dataset.special === 'temp') {
+            vars.push('T');
+        } else {
+            const type = row.querySelector('select').value;
+            const mag = row.querySelectorAll('select')[1].value;
+            const p1 = row.querySelectorAll('input[type=text]')[0].value;
+            const p2 = row.querySelectorAll('input[type=text]')[1].value;
+            [...row.querySelectorAll('input:checked')].forEach(cb => {
+              vars.push(type + cb.value + mag + p1 + (p2 ? ','+p2 : ''));
+            });
+        }
+    });
+    document.getElementById('configPreview').textContent = hdr + (vars.length ? vars.join('') : '');
+  }
+
+  // ── VALUES string parser ─────────────────────────────────────────────
+  const VALUE_META = {
+    O: { label: 'RMS',             units: { a:'g', v:'mm/s', d:'um' } },
+    C: { label: 'RMS/COMP',        units: { a:'g', v:'mm/s', d:'um' } },
+    E: { label: 'Envelope P-P',    units: { e:'ge' } },
+    W: { label: 'Peak-to-Peak',    units: { a:'g', v:'mm/s', e:'ge', d:'um' } },
+    F: { label: 'Friction',        units: { a:'g' } },
+    R: { label: 'RPM',             units: { a:'Hz', v:'Hz', e:'Hz', d:'Hz' } },
+    I: { label: 'Impedance',       units: { e:'N/g' } },
+    B: { label: 'Bias',            units: { _:'g' } },
+    T: { label: 'Temperature',     units: { _:'°C' } },
+  };
+
+  // Reconstruct the ordered list of expected variable tokens from the current config UI,
+  // mirroring exactly what buildConfig() puts into the config string.
+  function getExpectedVars() {
+    const list = [];
+    document.querySelectorAll('#varList > div').forEach(row => {
+      if (row.dataset.special === 'bias') {
+        [...row.querySelectorAll('input:checked')].forEach(cb => {
+          list.push({ type:'B', axis: cb.value, mag: null });
+        });
+      } else if (row.dataset.special === 'temp') {
+        list.push({ type:'T', axis: null, mag: null });
+      } else {
+        const type = row.querySelector('select').value;
+        const mag  = type === 'E' ? 'e' : row.querySelectorAll('select')[1].value;
+        [...row.querySelectorAll('input:checked')].forEach(cb => {
+          list.push({ type, axis: cb.value, mag });
+        });
+      }
+    });
+    return list;
+  }
+
+  function renderParsedValues(raw) {
+    const clean = raw.trim().replace(/^\[/, '').replace(/\]$/, '');
+    const nums  = clean.split(',').map(s => s.replace(/[\[\]]/g, '').trim()).filter(s => s !== '');
+    const vars  = getExpectedVars();
+
+    // Colour per value type
+    const TYPE_COLOR = {
+      O: '#f5c518', C: '#f5c518',           // RMS → yellow
+      E: '#00e5c3', W: '#00e5c3',           // Envelope / Waveform → teal
+      F: '#ff9f43',                          // Friction → orange
+      R: '#a29bfe',                          // RPM → purple
+      I: '#fd79a8',                          // Impedance → pink
+      B: '#74b9ff',                          // Bias → light blue
+      T: '#ff7675',                          // Temperature → red-orange
+    };
+
+    let cards = '';
+    vars.forEach((v, i) => {
+      const meta  = VALUE_META[v.type] || { label: v.type, units: {} };
+      const unit  = v.mag ? (meta.units[v.mag] || '') : (meta.units['_'] || '');
+      const raw_n = nums[i] !== undefined ? nums[i] : '—';
+      const axis  = v.axis ? v.axis.toUpperCase() : '';
+      const mag   = v.mag  ? v.mag.toUpperCase()  : '';
+      const color = TYPE_COLOR[v.type] || '#f5c518';
+
+      // Parse number for formatting
+      const parsed = parseFloat(raw_n);
+      const display = isNaN(parsed) ? raw_n
+        : Math.abs(parsed) >= 10000 ? parsed.toExponential(2)
+        : Math.abs(parsed) >= 100   ? parsed.toFixed(1)
+        : Math.abs(parsed) >= 1     ? parsed.toFixed(3)
+        : parsed.toFixed(4);
+
+      cards += `
+        <div style="
+          background:var(--surface2);
+          border:1px solid var(--border);
+          border-top:3px solid ${color};
+          border-radius:6px;
+          padding:14px 16px;
+          display:flex; flex-direction:column; gap:4px;
+          position:relative;
+        ">
+          <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;">
+            ${meta.label}
+            ${axis ? `<span style="color:${color};margin-left:4px;">${axis}</span>` : ''}
+            ${mag  ? `<span style="color:var(--muted);margin-left:2px;">${mag}</span>` : ''}
+          </div>
+          <div style="font-size:32px;font-weight:900;font-family:'Segoe UI',monospace;color:${color};line-height:1.1;letter-spacing:-0.02em;">
+            ${display}
+          </div>
+          <div style="font-size:12px;color:var(--muted);font-family:monospace;">
+            ${unit}
+          </div>
+          <div style="position:absolute;top:10px;right:12px;font-size:10px;color:var(--border);font-family:monospace;">#${i+1}</div>
+        </div>`;
+    });
+
+    // Unknowns
+    if (nums.length > vars.length) {
+      for (let i = vars.length; i < nums.length; i++) {
+        cards += `
+          <div style="
+            background:var(--surface2); border:1px solid var(--border);
+            border-top:3px solid var(--border); border-radius:6px;
+            padding:14px 16px; display:flex; flex-direction:column; gap:4px;
+          ">
+            <div style="font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);">Unknown</div>
+            <div style="font-size:32px;font-weight:900;font-family:monospace;color:var(--muted);">${nums[i]}</div>
+            <div style="position:absolute;top:10px;right:12px;font-size:10px;color:var(--border);">#${i+1}</div>
+          </div>`;
+      }
+    }
+
+    const html = cards +
+      `<div style="grid-column:1/-1;font-family:monospace;font-size:11px;color:var(--muted);padding:2px 0;">
+         raw: ${raw}</div>`;
+    return html;
+  }
+  // ────────────────────────────────────────────────────────────────────
+
+  // ── DIR string parser ────────────────────────────────────────────────
+  const DIR_TYPE  = { s: 'Spectrum', w: 'Waveform' };
+  const DIR_MAG   = { a: 'Accel (a)', v: 'Velocity (v)', e: 'Envelope (e)', d: 'Displ. (d)' };
+  const DIR_AXIS  = { x: 'X', y: 'Y', z: 'Z' };
+
+  function parseDirString(raw) {
+    let files = [];
+    // Primary: extract every quoted token — immune to leading/trailing junk bytes
+    const matches = raw.match(/"([^"]+)"/g);
+    if (matches && matches.length) {
+      files = matches.map(s => s.replace(/"/g, '').trim()).filter(s => s.length > 0);
+    } else {
+      // Fallback: try JSON.parse on cleaned string
+      try {
+        const cleaned = raw.trim().replace(/^[^\[]*(\[.*\]).*$/, '$1');
+        const parsed = JSON.parse(cleaned);
+        files = Array.isArray(parsed) ? parsed.map(s => String(s).trim()).filter(s => s.length > 0) : [];
+      } catch(e) {
+        log('[DIR] Could not parse DIR string: ' + e.message);
+      }
+    }
+
+    return files.map((name, i) => {
+      // Format: <type><magnitude><axis>#<samples>#<fmax>
+      const m = name.match(/^([swSW])([avdeAVDE])([xyzXYZ])#(\d+)#([\d.]+)$/i);
+      if (!m) return { raw: name, num: i + 1, error: true };
+      return {
+        num:     i + 1,
+        raw:     name,
+        type:    m[1].toLowerCase(),
+        mag:     m[2].toLowerCase(),
+        axis:    m[3].toLowerCase(),
+        samples: parseInt(m[4]),
+        fmax:    parseFloat(m[5]),
+        error:   false,
+      };
+    });
+  }
+
+  function renderDirTable(raw) {
+    const files = parseDirString(raw);
+    window._dirFiles = files; // store for Plot button access
+    if (!files.length) return '<span style="color:var(--muted)">No files received.</span>';
+
+    let html = `<table id="dirTable">
+      <thead><tr>
+        <th>#FILE</th><th>Type</th><th>Mag</th><th>Axis</th><th>Samples</th><th>Max Freq</th><th></th>
+      </tr></thead><tbody>`;
+
+    files.forEach(f => {
+      if (f.error) {
+        html += `<tr>
+          <td class="num">${f.num}</td>
+          <td colspan="6" style="color:var(--danger); font-size:12px;">⚠ Unrecognised: ${f.raw}</td>
+        </tr>`;
+      } else {
+        const samples = Math.floor(f.samples / 4);
+        html += `<tr>
+          <td class="num">${f.num}</td>
+          <td class="type">${DIR_TYPE[f.type] ?? f.type}</td>
+          <td class="mag">${DIR_MAG[f.mag]  ?? f.mag}</td>
+          <td class="axis">${DIR_AXIS[f.axis] ?? f.axis}</td>
+          <td class="val">${samples.toLocaleString()}</td>
+          <td class="freq">${f.fmax} Hz</td>
+          <td><button class="plot-btn" data-idx="${f.num - 1}" style="padding:4px 14px;font-size:12px;background:var(--accent);color:#000;">Plot</button></td>
+        </tr>`;
+      }
+    });
+
+    html += `</tbody></table>`;
+    html += `<div style="font-size:11px;color:var(--muted);margin-top:8px;">raw: ${raw}</div>`;
+    html += `<div id="plotArea" style="margin-top:20px;"></div>`;
+    return html;
+  }
+  // ────────────────────────────────────────────────────────────────────
+
+  // ── FILE plotting ────────────────────────────────────────────────────
+  document.addEventListener('click', e => {
+    if (e.target.classList.contains('plot-btn')) {
+      const idx = parseInt(e.target.dataset.idx);
+      const f = window._dirFiles && window._dirFiles[idx];
+      if (f && fileChar) requestAndPlotFile(f);
+      else if (!fileChar) log('[FILE] FILE characteristic not connected');
+    }
+  });
+
+  async function requestAndPlotFile(f) {
+    const plotArea = document.getElementById('plotArea');
+    if (!plotArea) return;
+    const totalBytes = f.samples;
+    const fileName = f.raw.split('#')[0].toLowerCase();
+    const cmd = `${fileName} 0 0 ${totalBytes}`;
+    log(`[FILE] Requesting: ${cmd}`);
+
+    // Open the window immediately while we're inside the click handler
+    // so browsers don't block it as a popup
+    const plotWin = window.open('', '_blank');
+    if (plotWin) {
+      plotWin.document.write(`<!DOCTYPE html><html><head><title>${f.raw} — loading…</title>
+        <style>body{background:#0d0d0d;color:#666;font-family:monospace;display:flex;
+        align-items:center;justify-content:center;height:100vh;flex-direction:column;gap:16px;}
+        .bar{width:300px;height:4px;background:#222;border-radius:2px;}
+        .fill{height:100%;width:0%;background:#00e5c3;border-radius:2px;transition:width .2s;}</style>
+        </head><body><div>Receiving ${Math.floor(totalBytes/4).toLocaleString()} samples…</div>
+        <div class="bar"><div class="fill" id="pbar"></div></div></body></html>`);
+      plotWin.document.close();
+    }
+
+    plotArea.innerHTML = `<div style="color:var(--muted);font-size:13px;font-family:monospace;">
+      ⏳ Receiving ${Math.floor(totalBytes/4).toLocaleString()} samples (${totalBytes} bytes)…<br>
+      <div id="plotProgress" style="margin-top:6px;height:4px;background:var(--border);border-radius:2px;">
+        <div id="plotProgressBar" style="height:100%;width:0%;background:var(--accent);border-radius:2px;transition:width .2s;"></div>
+      </div></div>`;
+
+    const allBytes = [];
+    let received = 0;
+
+    window._fileCollector = (buf) => {
+      const bytes = new Uint8Array(buf);
+      for (const b of bytes) allBytes.push(b);
+      received += bytes.length;
+      const pct = Math.min(100, (received / totalBytes) * 100);
+      const bar = document.getElementById('plotProgressBar');
+      if (bar) bar.style.width = pct + '%';
+      // Update progress in the plot window too
+      if (plotWin && !plotWin.closed) {
+        const pb = plotWin.document.getElementById('pbar');
+        if (pb) pb.style.width = pct + '%';
+      }
+      log(`[FILE] ${received}/${totalBytes} bytes`);
+
+      if (received >= totalBytes) {
+        window._fileCollector = null;
+        const floats = parseFloats(allBytes);
+        log(`[FILE] Complete — ${floats.length} floats`);
+        plotArea.innerHTML = `<div style="color:var(--accent2);font-size:13px;font-family:monospace;">✅ ${floats.length.toLocaleString()} samples received — plot opened in new tab.</div>`;
+        openPlotWindow(floats, f, plotWin);
+        // Store for Point save
+        if (!window._savedFloats) window._savedFloats = {};
+        window._savedFloats[f.raw] = floats;
+      }
+    };
+
+    await fileChar.writeValue(new TextEncoder().encode(cmd));
+  }
+
+  function openPlotWindow(floats, f, plotWin) {
+    const DIR_TYPE_S  = JSON.stringify({ s:'Spectrum', w:'Waveform' });
+    const DIR_MAG_S   = JSON.stringify({ a:'Accel (a)', v:'Velocity (v)', e:'Envelope (e)', d:'Displ. (d)' });
+    const floatData   = JSON.stringify(floats);
+    const fileMeta    = JSON.stringify(f);
+
+    const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${f.raw} — witraq plot</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:#0d0d0d; --surface:#1a1a1a; --surface2:#222;
+    --border:#333; --text:#e0e0e0; --muted:#666;
+    --accent:#00e5c3; --accent2:#7eb8f7; --danger:#ff4d6a;
+  }
+  html, body { background:var(--bg); color:var(--text); font-family:monospace; height:100%; }
+  body { display:flex; flex-direction:column; padding:16px; gap:10px; }
+  h2 { font-size:14px; color:var(--accent2); font-weight:normal; }
+  .toolbar { display:flex; gap:6px; align-items:center; flex-wrap:wrap; }
+  .plot-btn { padding:4px 12px; font-size:12px; border-radius:3px; cursor:pointer;
+              background:var(--surface2); color:var(--text); border:1px solid var(--border); font-family:monospace; }
+  .plot-btn.active { background:var(--accent); color:#000; border-color:var(--accent); }
+  .plot-btn:hover:not(.active) { border-color:var(--accent2); color:var(--accent2); }
+  canvas { display:block; width:100%; background:var(--surface2);
+           border-radius:4px; border:1px solid var(--border); cursor:crosshair; flex:1; min-height:0; }
+  .readout { font-size:12px; color:var(--accent2); background:var(--surface2);
+             border:1px solid var(--border); border-radius:3px;
+             padding:3px 10px; min-width:240px; }
+  .info { font-size:11px; color:var(--muted); display:flex; gap:16px; }
+  kbd { font-size:10px; background:var(--border); border-radius:2px; padding:1px 4px;
+        color:var(--muted); font-family:monospace; margin-left:2px; }
+</style>
+</head>
+<body>
+<h2 id="title"></h2>
+<div class="toolbar">
+  <button class="plot-btn active" id="tb-cur1">Cursor A <kbd>A</kbd></button>
+  <button class="plot-btn" id="tb-cur2">Cursor B <kbd>B</kbd></button>
+  <button class="plot-btn" id="tb-fit">Reset <kbd>R</kbd></button>
+  <span class="readout" id="readout">hover to read</span>
+</div>
+<canvas id="c"></canvas>
+<div class="info">
+  <span id="info-samples"></span>
+  <span id="info-zoom"></span>
+  <span style="margin-left:auto;color:var(--muted);">drag=zoom &nbsp;·&nbsp; scroll=pan X &nbsp;·&nbsp; ctrl+scroll=zoom X &nbsp;·&nbsp; shift+scroll=zoom Y &nbsp;·&nbsp; alt+scroll=pan Y &nbsp;·&nbsp; drag cursor=move &nbsp;·&nbsp; R=reset</span>
+</div>
+<script>
+  const DIR_TYPE = ${DIR_TYPE_S};
+  const DIR_MAG  = ${DIR_MAG_S};
+  const f        = ${fileMeta};
+  const floats   = ${floatData};
+
+  const MAG_UNITS = { a:'g', v:'mm/s', e:'ge', d:'um' };
+  const units  = MAG_UNITS[f.mag] || '';
+  const xLabel = f.type === 's' ? 'Frequency (Hz)' : 'Time (s)';
+  const title  = (DIR_TYPE[f.type] ?? f.type) + ' — ' + f.axis.toUpperCase() + ' axis — ' + units;
+  document.getElementById('title').textContent = title;
+  document.title = f.raw + ' — witraq';
+
+  const n     = floats.length;
+  const fmax  = f.fmax;
+  const xFull = floats.map((_, i) => f.type === 's' ? (i * fmax / n) : (i / fmax));
+  const xFullMin = xFull[0], xFullMax = xFull[n-1];
+  const yFullMin = Math.min(...floats), yFullMax = Math.max(...floats);
+
+  document.getElementById('info-samples').textContent =
+    n.toLocaleString() + ' samples · fmax ' + fmax + ' Hz';
+
+  const canvas  = document.getElementById('c');
+  const ctx     = canvas.getContext('2d');
+  const readout = document.getElementById('readout');
+  const infoZ   = document.getElementById('info-zoom');
+
+  let vxMin = xFullMin, vxMax = xFullMax;
+  let vyMin = yFullMin, vyMax = yFullMax;
+  const PAD = { l:68, r:20, t:18, b:46 };
+  let cursors = { A:null, B:null };
+  let mode = 'none'; // cur1 | cur2 | none
+  let drag = null, touches = null;
+
+  const modeButtons = {
+    cur1: document.getElementById('tb-cur1'),
+    cur2: document.getElementById('tb-cur2'),
+  };
+  function setMode(m) {
+    mode = m;
+    Object.entries(modeButtons).forEach(([k,b]) => b.classList.toggle('active', k===m));
+  }
+  document.getElementById('tb-cur1').onclick = () => setMode('cur1');
+  document.getElementById('tb-cur2').onclick = () => setMode('cur2');
+  document.getElementById('tb-fit').onclick  = () => {
+    vxMin=xFullMin; vxMax=xFullMax; vyMin=yFullMin; vyMax=yFullMax;
+    cursors={A:null,B:null}; render();
+  };
+
+  function iW() { return canvas.width  / dpr - PAD.l - PAD.r; }
+  function iH() { return canvas.height / dpr - PAD.t - PAD.b; }
+  let dpr = 1;
+  function canvasW() { return canvas.width  / dpr; }
+  function canvasH() { return canvas.height / dpr; }
+  function toCanvasX(x) { return PAD.l + ((x-vxMin)/(vxMax-vxMin)) * iW(); }
+  function toCanvasY(y) { return PAD.t + iH() - ((y-vyMin)/(vyMax-vyMin)) * iH(); }
+  function toDataX(cx)  { return vxMin + ((cx-PAD.l)/iW()) * (vxMax-vxMin); }
+  function toDataY(cy)  { return vyMin + (1-(cy-PAD.t)/iH()) * (vyMax-vyMin); }
+  function clamp(v,lo,hi) { return Math.max(lo,Math.min(hi,v)); }
+
+  function niceTicks(lo, hi, count) {
+    const range = hi - lo || 1;
+    const step  = Math.pow(10, Math.floor(Math.log10(range / count)));
+    const nice  = [1,2,2.5,5,10].map(x => x*step).find(s => range/s <= count*1.5) || step;
+    const ticks = [];
+    for (let v = Math.ceil(lo/nice)*nice; v <= hi+nice*1e-9; v += nice)
+      ticks.push(parseFloat(v.toPrecision(10)));
+    return ticks;
+  }
+
+  function nearestY(xv) {
+    const i = Math.round((xv - xFull[0]) / (xFull[1]-xFull[0]));
+    return floats[clamp(i,0,n-1)];
+  }
+
+  function fmtNum(v) {
+    if (Math.abs(v) >= 10000 || (Math.abs(v) < 0.001 && v !== 0)) return v.toExponential(2);
+    return parseFloat(v.toPrecision(5)).toString();
+  }
+
+  function updateReadout(xv) {
+    const parts = [];
+    if (cursors.A !== null) {
+      parts.push('A: ' + cursors.A.toFixed(3) + ' / ' + nearestY(cursors.A).toFixed(4) + ' ' + units);
+    }
+    if (cursors.B !== null) {
+      parts.push('B: ' + cursors.B.toFixed(3) + ' / ' + nearestY(cursors.B).toFixed(4) + ' ' + units);
+      if (cursors.A !== null) {
+        const dx = Math.abs(cursors.B - cursors.A);
+        const dy = Math.abs(nearestY(cursors.B) - nearestY(cursors.A));
+        parts.push('|AB| dx=' + dx.toFixed(3) + ' dy=' + dy.toFixed(4));
+      }
+    }
+    if (xv !== undefined && parts.length === 0) {
+      readout.textContent = 'x: ' + xv.toFixed(3) + '  y: ' + nearestY(xv).toFixed(4) + ' ' + units;
+      return;
+    }
+    readout.textContent = parts.length ? parts.join('  |  ') : 'hover to read';
+  }
+
+  function render() {
+    dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+    canvas.width  = rect.width  * dpr;
+    canvas.height = rect.height * dpr;
+    ctx.scale(dpr, dpr);
+    const cW = canvasW(), cH = canvasH();
+    const pl=PAD.l, pr=PAD.r, pt=PAD.t, pb=PAD.b;
+    const w=iW(), h=iH();
+
+    ctx.clearRect(0,0,cW,cH);
+
+    // CSS vars
+    const cs = getComputedStyle(document.documentElement);
+    const cBorder  = cs.getPropertyValue('--border').trim();
+    const cAccent  = cs.getPropertyValue('--accent').trim();
+    const cMuted   = cs.getPropertyValue('--muted').trim();
+    const cAccent2 = cs.getPropertyValue('--accent2').trim();
+
+    // Clip to plot area
+    ctx.save();
+    ctx.beginPath(); ctx.rect(pl,pt,w,h); ctx.clip();
+
+    // Grid
+    ctx.strokeStyle = cBorder; ctx.lineWidth = 1;
+    const xTicks = niceTicks(vxMin,vxMax,7);
+    const yTicks = niceTicks(vyMin,vyMax,6);
+    xTicks.forEach(v => {
+      const x = toCanvasX(v);
+      ctx.setLineDash([3,3]); ctx.beginPath(); ctx.moveTo(x,pt); ctx.lineTo(x,pt+h); ctx.stroke();
+    });
+    yTicks.forEach(v => {
+      const y = toCanvasY(v);
+      ctx.setLineDash([3,3]); ctx.beginPath(); ctx.moveTo(pl,y); ctx.lineTo(pl+w,y); ctx.stroke();
+    });
+    ctx.setLineDash([]);
+
+    // Signal
+    ctx.strokeStyle = cAccent; ctx.lineWidth = 1.5;
+    const step = Math.max(1, Math.floor(n / (w * 3)));
+    ctx.beginPath();
+    let first = true;
+    for (let i=0; i<n; i+=step) {
+      const cx = toCanvasX(xFull[i]);
+      const cy = toCanvasY(floats[i]);
+      if (first) { ctx.moveTo(cx,cy); first=false; } else ctx.lineTo(cx,cy);
+    }
+    ctx.stroke();
+
+    // Cursors
+    ['A','B'].forEach((k,ki) => {
+      if (cursors[k] === null) return;
+      const cx = toCanvasX(cursors[k]);
+      ctx.strokeStyle = ki===0 ? '#f5a623' : '#ff4d6a';
+      ctx.lineWidth = 1.5; ctx.setLineDash([5,3]);
+      ctx.beginPath(); ctx.moveTo(cx,pt); ctx.lineTo(cx,pt+h); ctx.stroke();
+      ctx.setLineDash([]);
+      ctx.fillStyle = ki===0 ? '#f5a623' : '#ff4d6a';
+      ctx.font = 'bold 12px monospace';
+      ctx.fillText(k, cx+4, pt+14);
+    });
+
+    ctx.restore();
+
+    // Border
+    ctx.strokeStyle = cBorder; ctx.lineWidth=1; ctx.setLineDash([]);
+    ctx.strokeRect(pl,pt,w,h);
+
+    // Tick labels
+    ctx.fillStyle = cMuted; ctx.font = '10px monospace';
+    xTicks.forEach(v => {
+      const x = toCanvasX(v);
+      ctx.textAlign='center'; ctx.fillText(fmtNum(v), x, pt+h+14);
+    });
+    yTicks.forEach(v => {
+      const y = toCanvasY(v);
+      ctx.textAlign='right'; ctx.fillText(fmtNum(v), pl-5, y+4);
+    });
+
+    // Axis labels
+    ctx.fillStyle = cMuted; ctx.font='11px monospace';
+    ctx.textAlign='center';
+    ctx.fillText(xLabel, pl+w/2, pt+h+32);
+    ctx.save(); ctx.translate(13, pt+h/2); ctx.rotate(-Math.PI/2);
+    ctx.fillText(units, 0, 0); ctx.restore();
+
+    updateReadout();
+
+    const xSpan = vxMax-vxMin;
+    infoZ.textContent = xSpan < (xFullMax-xFullMin)*0.99
+      ? 'Zoom: '+vxMin.toFixed(2)+' – '+vxMax.toFixed(2)+' '+xLabel : '';
+  }
+
+  function evPos(e) {
+    const r = canvas.getBoundingClientRect();
+    return { x: e.clientX-r.left, y: e.clientY-r.top };
+  }
+  function inPlot(p) {
+    return p.x>=PAD.l && p.x<=canvasW()-PAD.r && p.y>=PAD.t && p.y<=canvasH()-PAD.b;
+  }
+
+  canvas.addEventListener('mousedown', e => {
+    const p = evPos(e);
+    if (!inPlot(p)) return;
+
+    // Check if clicking near an existing cursor → drag it
+    const SNAP = 8;
+    for (const k of ['A','B']) {
+      if (cursors[k] === null) continue;
+      const cx = toCanvasX(cursors[k]);
+      if (Math.abs(p.x - cx) <= SNAP) {
+        drag = { cursorDrag: k };
+        canvas.style.cursor = 'ew-resize';
+        e.preventDefault(); return;
+      }
+    }
+
+    // Place cursor if in cursor mode
+    if (mode === 'cur1' || mode === 'cur2') {
+      cursors[mode === 'cur1' ? 'A' : 'B'] = clamp(toDataX(p.x), xFullMin, xFullMax);
+      render(); return;
+    }
+
+    // Otherwise start zoom-area drag
+    drag = { sx: p.x, sy: p.y, vx0: vxMin, vx1: vxMax, vy0: vyMin, vy1: vyMax };
+    canvas.style.cursor = 'crosshair';
+    e.preventDefault();
+  });
+
+  canvas.addEventListener('mousemove', e => {
+    const p = evPos(e);
+
+    // Cursor hover: show ew-resize if near a cursor line
+    if (!drag) {
+      let nearCursor = false;
+      for (const k of ['A','B']) {
+        if (cursors[k] === null) continue;
+        if (Math.abs(p.x - toCanvasX(cursors[k])) <= 8) { nearCursor = true; break; }
+      }
+      canvas.style.cursor = nearCursor ? 'ew-resize' : (mode==='cur1'||mode==='cur2' ? 'crosshair' : 'crosshair');
+    }
+
+    if (inPlot(p)) updateReadout(toDataX(p.x));
+
+    if (!drag) return;
+
+    // Dragging a cursor
+    if (drag.cursorDrag) {
+      cursors[drag.cursorDrag] = clamp(toDataX(p.x), xFullMin, xFullMax);
+      render(); return;
+    }
+
+    // Zoom-area rubber band
+    render();
+    const x1 = Math.min(drag.sx, p.x), x2 = Math.max(drag.sx, p.x);
+    const y1 = Math.min(drag.sy, p.y), y2 = Math.max(drag.sy, p.y);
+    ctx.save();
+    ctx.strokeStyle = '#f5c518'; ctx.lineWidth = 1; ctx.setLineDash([4,3]);
+    ctx.fillStyle = '#f5c51815';
+    ctx.fillRect(x1, y1, x2-x1, y2-y1);
+    ctx.strokeRect(x1, y1, x2-x1, y2-y1);
+    ctx.restore();
+  });
+
+  canvas.addEventListener('mouseup', e => {
+    if (!drag) return;
+    const p = evPos(e);
+
+    if (drag.cursorDrag) {
+      cursors[drag.cursorDrag] = clamp(toDataX(p.x), xFullMin, xFullMax);
+      drag = null; canvas.style.cursor = 'crosshair'; render(); return;
+    }
+
+    // Commit zoom area if dragged enough
+    if (Math.abs(p.x - drag.sx) > 5 || Math.abs(p.y - drag.sy) > 5) {
+      const x1 = Math.min(drag.sx, p.x), x2 = Math.max(drag.sx, p.x);
+      const y1 = Math.min(drag.sy, p.y), y2 = Math.max(drag.sy, p.y);
+      vxMin = toDataX(x1); vxMax = toDataX(x2);
+      vyMin = toDataY(y2); vyMax = toDataY(y1);
+    }
+    drag = null; canvas.style.cursor = 'crosshair'; render();
+  });
+
+  canvas.addEventListener('mouseleave', () => {
+    if (drag && !drag.cursorDrag) drag = null;
+    readout.textContent = 'hover to read';
+  });
+
+  canvas.addEventListener('touchstart', e => {
+    if (e.touches.length===2) {
+      touches={x0:e.touches[0].clientX, x1:e.touches[1].clientX, vx0:vxMin, vx1:vxMax};
+      e.preventDefault();
+    }
+  }, {passive:false});
+  canvas.addEventListener('touchmove', e => {
+    if (touches&&e.touches.length===2) {
+      const d0=Math.abs(touches.x1-touches.x0);
+      const d1=Math.abs(e.touches[1].clientX-e.touches[0].clientX);
+      const sc=d0/(d1||1);
+      const r=canvas.getBoundingClientRect();
+      const cx=toDataX((e.touches[0].clientX+e.touches[1].clientX)/2-r.left);
+      vxMin=cx+(touches.vx0-cx)*sc; vxMax=cx+(touches.vx1-cx)*sc;
+      render(); e.preventDefault();
+    }
+  }, {passive:false});
+  canvas.addEventListener('touchend', ()=>{ touches=null; });
+
+  // ── Keyboard shortcuts ──────────────────────────────────────────────
+  document.addEventListener('keydown', e => {
+    if (e.target.tagName === 'INPUT') return;
+    const key = e.key.toLowerCase();
+    if      (key === 'a')       setMode('cur1');
+    else if (key === 'b')       setMode('cur2');
+    else if (key === 'r')       {
+      vxMin=xFullMin; vxMax=xFullMax; vyMin=yFullMin; vyMax=yFullMax;
+      cursors={A:null,B:null}; render();
+    }
+    else if (key === 'escape')  { setMode('zoom'); }
+  });
+  // ────────────────────────────────────────────────────────────────────
+
+  // ── Scroll: pan X / zoom X / pan Y ─────────────────────────────────
+  canvas.removeEventListener('wheel', canvas._wheelHandler);
+  canvas.addEventListener('wheel', canvas._wheelHandler = e => {
+    e.preventDefault();
+    const p = evPos(e); if (!inPlot(p)) return;
+    const delta = e.deltaY;
+    const k = delta > 0 ? 1.12 : 0.89;
+    const d10x = (vxMax - vxMin) * (delta > 0 ? 0.08 : -0.08);
+    const d10y = (vyMax - vyMin) * (delta > 0 ? 0.08 : -0.08);
+
+    if (e.ctrlKey) {
+      // Ctrl + scroll = zoom X around cursor
+      const xc = toDataX(p.x);
+      vxMin = xc + (vxMin - xc) * k;
+      vxMax = xc + (vxMax - xc) * k;
+    } else if (e.shiftKey) {
+      // Shift + scroll = zoom Y around cursor
+      const yc = toDataY(p.y);
+      vyMin = yc + (vyMin - yc) * k;
+      vyMax = yc + (vyMax - yc) * k;
+    } else if (e.altKey) {
+      // Alt + scroll = pan Y
+      vyMin += d10y; vyMax += d10y;
+    } else {
+      // Plain scroll = pan X
+      vxMin += d10x; vxMax += d10x;
+    }
+    render();
+  }, {passive: false});
+  // ────────────────────────────────────────────────────────────────────
+
+  new ResizeObserver(render).observe(canvas);
+  render();
+<\/script>
+</body>
+</html>`;
+
+    if (!plotWin || plotWin.closed) {
+      plotWin = window.open('', '_blank');
+    }
+    if (plotWin) {
+      plotWin.document.open();
+      plotWin.document.write(html);
+      plotWin.document.close();
+      plotWin.focus();
+    }
+  }
+
+  function parseFloats(bytes) {
+    const count = Math.floor(bytes.length / 4);
+    const buf = new ArrayBuffer(count * 4);
+    const view = new DataView(buf);
+    for (let i = 0; i < count * 4; i++) view.setUint8(i, bytes[i]);
+    const floats = [];
+    for (let i = 0; i < count; i++) floats.push(view.getFloat32(i * 4, true)); // little-endian
+    return floats;
+  }
+
+
+  // ── CSV Export ───────────────────────────────────────────────────────
+  function csvEscape(v) {
+    const s = String(v ?? '');
+    return s.includes(',') || s.includes('"') || s.includes('\n')
+      ? '"' + s.replace(/"/g, '""') + '"' : s;
+  }
+
+  function saveMeasurementCSV() {
+    const now   = _lastMeasureTime || new Date();
+    const date  = now.toLocaleDateString();
+    const time  = now.toLocaleTimeString();
+    const lines = [];
+
+    // ── Section: Sensor Info ──
+    lines.push('SENSOR INFO');
+    lines.push('Device,' + csvEscape(device ? device.name : '--'));
+    lines.push('Serial Number,'  + csvEscape(document.getElementById('identSerial').textContent));
+    lines.push('Model,'          + csvEscape(document.getElementById('identModel').textContent));
+    lines.push('Hardware,'       + csvEscape(document.getElementById('identHw').textContent));
+    lines.push('Firmware,'       + csvEscape(document.getElementById('identFwVer').textContent));
+    lines.push('FW Description,' + csvEscape(document.getElementById('identFwDesc').textContent));
+    lines.push('FW Date,'        + csvEscape(document.getElementById('identDate').textContent));
+    lines.push('');
+
+    // ── Section: Measurement date/time ──
+    lines.push('MEASUREMENT');
+    lines.push('Date,' + csvEscape(date));
+    lines.push('Time,' + csvEscape(time));
+    lines.push('');
+
+    // ── Section: Status ──
+    lines.push('STATUS');
+    lines.push('RSSI,'         + csvEscape(document.getElementById('gsbRssi').textContent));
+    lines.push('Battery,'      + csvEscape(document.getElementById('gsbVbat').textContent));
+    lines.push('Usage Time,'   + csvEscape(document.getElementById('gsbTime').textContent));
+    lines.push('Free Memory,'  + csvEscape(document.getElementById('gsbMem').textContent));
+    lines.push('');
+
+    // ── Section: Configuration ──
+    lines.push('CONFIGURATION');
+    lines.push('Config String,' + csvEscape(document.getElementById('configPreview').textContent));
+    lines.push('Measuring Time,' + csvEscape(document.getElementById('measuringTimeLabel').textContent));
+    lines.push('');
+
+    // ── Section: Variable Settings ──
+    lines.push('VARIABLE SETTINGS');
+    lines.push('Index,Type,Magnitude,Axis');
+    const vars = getExpectedVars();
+    vars.forEach((v, i) => {
+      const meta = VALUE_META[v.type] || { label: v.type };
+      lines.push([i+1, csvEscape(meta.label), csvEscape(v.mag || '--'), csvEscape(v.axis ? v.axis.toUpperCase() : '--')].join(','));
+    });
+    lines.push('');
+
+    // ── Section: Measurement Values ──
+    lines.push('MEASUREMENT VALUES');
+    lines.push('Index,Value Type,Magnitude,Axis,Result,Units');
+    if (_lastValuesRaw) {
+      const clean = _lastValuesRaw.trim().replace(/^\[/, '').replace(/\]$/, '');
+      const nums  = clean.split(',').map(s => s.replace(/[\[\]]/g, '').trim());
+      vars.forEach((v, i) => {
+        const meta  = VALUE_META[v.type] || { label: v.type };
+        const unit  = v.mag ? (meta.units?.[v.mag] || '') : (meta.units?.['_'] || '');
+        const val   = nums[i] ?? '';
+        lines.push([i+1, csvEscape(meta.label), csvEscape(v.mag || '--'),
+                    csvEscape(v.axis ? v.axis.toUpperCase() : '--'),
+                    csvEscape(val), csvEscape(unit)].join(','));
+      });
+    } else {
+      lines.push('No measurement data available');
+    }
+    lines.push('');
+
+    // ── Section: Files (DIR) ──
+    lines.push('FILES');
+    lines.push('Index,Filename,Type,Magnitude,Axis,Samples,Max Freq (Hz)');
+    if (window._dirFiles && window._dirFiles.length) {
+      window._dirFiles.forEach(f => {
+        if (f.error) {
+          lines.push([f.num, csvEscape(f.raw), 'ERROR','','','',''].join(','));
+        } else {
+          lines.push([f.num, csvEscape(f.raw),
+                      csvEscape(DIR_TYPE[f.type] ?? f.type),
+                      csvEscape(DIR_MAG[f.mag]   ?? f.mag),
+                      csvEscape(f.axis.toUpperCase()),
+                      Math.floor(f.samples / 4),
+                      f.fmax].join(','));
+        }
+      });
+    } else {
+      lines.push('No file data available');
+    }
+
+    // ── Build and download ──
+    const csv      = lines.join('\r\n');
+    const blob     = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url      = URL.createObjectURL(blob);
+    const a        = document.createElement('a');
+    const filename = `witraq_${(device ? device.name : 'measurement').replace(/[^a-z0-9]/gi,'_')}_${now.toISOString().slice(0,19).replace(/[T:]/g,'-')}.csv`;
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+    log('[CSV] Saved: ' + filename);
+  }
+
+  // ────────────────────────────────────────────────────────────────────
+
+  // ── Point Save ───────────────────────────────────────────────────────
+  function ptVal(id) { return (document.getElementById(id)?.value || '').trim(); }
+
+  async function savePointData() {
+    const status  = document.getElementById('pointSaveStatus');
+    const pointId = ptVal('pt_pointId') || 'POINT';
+    const now     = new Date();
+
+    // Folder: one per point, reused across all measurements
+    const folderName = pointId.replace(/[^a-z0-9_\-]/gi, '_');
+
+    // File: one per measurement, named by timestamp
+    const ts       = now.toISOString().slice(0, 19).replace('T', '_').replace(/:/g, '');
+    const filename = `${ts}.json`;
+
+    if (!window.showDirectoryPicker) {
+      status.textContent = '❌ File System Access API not supported. Use Chrome or Edge.';
+      return;
+    }
+
+    status.textContent = '📂 Select a parent folder…';
+    let parentDir;
+    try {
+      parentDir = await window.showDirectoryPicker({ mode: 'readwrite' });
+    } catch(e) {
+      status.textContent = '⚠ Folder selection cancelled.';
+      return;
+    }
+
+    let subDir;
+    try {
+      subDir = await parentDir.getDirectoryHandle(folderName, { create: true });
+    } catch(e) {
+      status.textContent = '❌ Could not create subfolder: ' + e.message;
+      return;
+    }
+
+    status.textContent = `💾 Saving ${folderName}/${filename}…`;
+
+    const pointMeta = {
+      company:  ptVal('pt_company'),
+      plant:    ptVal('pt_plant'),
+      sector:   ptVal('pt_sector'),
+      asset:    ptVal('pt_asset'),
+      pointId:  ptVal('pt_pointId'),
+      location: ptVal('pt_location'),
+      position: ptVal('pt_position'),
+      notes:    ptVal('pt_notes'),
+    };
+
+    const sensorInfo = {
+      device:   device ? device.name : '--',
+      serial:   document.getElementById('identSerial')?.textContent,
+      model:    document.getElementById('identModel')?.textContent,
+      hardware: document.getElementById('identHw')?.textContent,
+      firmware: document.getElementById('identFwVer')?.textContent,
+      fwDesc:   document.getElementById('identFwDesc')?.textContent,
+      fwDate:   document.getElementById('identDate')?.textContent,
+    };
+
+    const configStr = document.getElementById('configPreview')?.textContent || '';
+    const measTime  = document.getElementById('measuringTimeLabel')?.textContent || '';
+    const vars      = getExpectedVars();
+
+    const measureValues = [];
+    if (_lastValuesRaw) {
+      const clean = _lastValuesRaw.trim().replace(/^\[/, '').replace(/\]$/, '');
+      const nums  = clean.split(',').map(s => s.replace(/[\[\]]/g, '').trim());
+      vars.forEach((v, i) => {
+        const meta = VALUE_META[v.type] || { label: v.type, units: {} };
+        const unit = v.mag ? (meta.units[v.mag] || '') : (meta.units['_'] || '');
+        measureValues.push({
+          index: i + 1, type: meta.label,
+          axis: v.axis || null, magnitude: v.mag || null,
+          value: nums[i] !== undefined ? parseFloat(nums[i]) || nums[i] : null,
+          unit,
+        });
+      });
+    }
+
+    // Signals — include data arrays for all plotted files
+    const savedFloats  = window._savedFloats || {};
+    const allFiles     = window._dirFiles || [];
+    const plottedFiles = allFiles.filter(f => !f.error && savedFloats[f.raw]);
+    const notPlotted   = allFiles.length - plottedFiles.length;
+
+    const signals = plottedFiles.map(f => ({
+      filename:  f.raw,
+      type:      DIR_TYPE[f.type] ?? f.type,
+      magnitude: DIR_MAG[f.mag]  ?? f.mag,
+      axis:      f.axis?.toUpperCase(),
+      samples:   Math.floor(f.samples / 4),
+      fmax:      f.fmax,
+      data:      savedFloats[f.raw],
+    }));
+
+    const json = JSON.stringify({
+      savedAt:       now.toISOString(),
+      point:         pointMeta,
+      sensor:        sensorInfo,
+      configuration: { string: configStr, measuringTime: measTime },
+      status: {
+        rssi:      document.getElementById('gsbRssi')?.textContent,
+        battery:   document.getElementById('gsbVbat')?.textContent,
+        usageTime: document.getElementById('gsbTime')?.textContent,
+        freeMem:   document.getElementById('gsbMem')?.textContent,
+      },
+      measurementValues: measureValues,
+      signals,
+    }, null, 2);
+
+    try {
+      await writeFSFile(subDir, filename, json);
+    } catch(e) {
+      status.textContent = '❌ Failed to write ' + filename + ': ' + e.message;
+      return;
+    }
+
+    status.textContent =
+      `✅ Saved ${folderName}/${filename}` +
+      (signals.length  ? ` — ${signals.length} signal(s) included` : ' — no signals') +
+      (notPlotted      ? ` · ${notPlotted} skipped (not plotted)` : '');
+    log(`[SAVE] ${folderName}/${filename} — ${signals.length} signals, ${notPlotted} skipped`);
+  }
+
+  async function writeFSFile(dirHandle, filename, content) {
+    const fileHandle = await dirHandle.getFileHandle(filename, { create: true });
+    const writable   = await fileHandle.createWritable();
+    await writable.write(content);
+    await writable.close();
+  }
+
+  document.getElementById('btnPointSave').onclick = savePointData;
+  // ────────────────────────────────────────────────────────────────────
+
+  // BLE Logic
+  document.getElementById('search').onclick = async () => {
+    if (!navigator.bluetooth) {
+      alert("? Bluetooth Error:\nWeb Bluetooth is not supported by this browser, or you are not running over a secure connection (HTTPS).\n\nPlease use Google Chrome, Microsoft Edge, or Opera.");
+      return; // Stop execution
+    }		
+    try {
+        const available = await navigator.bluetooth.getAvailability();
+        if (!available) {
+          alert("?? Bluetooth is turned off. Please enable Bluetooth on your device and try again.");
+          return;
+        }
+      } catch (e) {
+        console.log("Availability check not supported, proceeding anyway...");
+    }
+    try {
+        device = await navigator.bluetooth.requestDevice({ 
+            filters: [{ namePrefix: 'witraq#' }], 
+            optionalServices: ['57540001-a266-48f9-f53f-b6b876ffab89'] 
+        });
+        document.getElementById('deviceList').innerHTML = `<option>${device.name}</option>`;
+        device.addEventListener('gattserverdisconnected', onDisconnected);
+    } catch(e) { log("Selection cancelled"); }
+  };
+
+  document.getElementById('connect').onclick = async () => {
+    const btn = document.getElementById('connect');
+    btn.textContent = 'Connecting…';
+    btn.disabled = true;
+    try {
+        const server = await device.gatt.connect();
+
+        const svc = await server.getPrimaryService('57540001-a266-48f9-f53f-b6b876ffab89');
+        const chars = await svc.getCharacteristics();
+
+        // Subscribe to all notify characteristics and wait for all to complete
+        const notifyPromises = chars.map(async c => {
+            const isConfig  = c.uuid.includes('0003');
+            const isUser    = c.uuid.includes('0009');
+            const isError   = c.uuid.includes('000a');
+            const isIdent   = c.uuid.includes('0002');
+            const isMeasure = c.uuid === '57540005-a266-48f9-f53f-b6b876ffab89';
+            const isValues  = c.uuid === '57540006-a266-48f9-f53f-b6b876ffab89';
+            const isDir     = c.uuid === '57540004-a266-48f9-f53f-b6b876ffab89';
+            const isFile    = c.uuid === '57540008-a266-48f9-f53f-b6b876ffab89';
+            if(isConfig)  configChar  = c;
+            if(isUser)    userChar    = c;
+            if(isIdent)   identChar   = c;
+            if(isMeasure) measureChar = c;
+            if(isValues)  valuesChar  = c;
+            if(isDir)     dirChar     = c;
+            if(isFile)    fileChar    = c;
+
+            if(c.properties.notify) {
+              await c.startNotifications();
+              c.addEventListener('characteristicvaluechanged', (e) => {
+                  const val = new TextDecoder().decode(e.target.value);
+                  log(`[NOTIFY] ${val}`);
+
+                  if(isIdent) {
+                    try {
+                      const clean = val.replace(/[^\x20-\x7E]/g, '').trim();
+                      const arr = JSON.parse(clean);
+                      document.getElementById('identSerial').textContent  = arr[0] ?? '--';
+                      document.getElementById('identHw').textContent      = arr[1] ?? '--';
+                      document.getElementById('identModel').textContent   = arr[2] ?? '--';
+                      document.getElementById('identFwDesc').textContent  = arr[3] ?? '--';
+                      document.getElementById('identFwVer').textContent   = arr[4] ?? '--';
+                      document.getElementById('identDate').textContent    = arr[5] ?? '--';
+                    } catch(err) { log('[IDENT parse error] ' + val); }
+                  }
+
+                  if(isConfig) {
+                    const lbl = document.getElementById('measuringTimeLabel');
+                    const match = val.match(/(\d+)/);
+                    lbl.style.color = '';
+                    lbl.textContent = match ? `measuring time: ${match[1]} Sec` : val.trim();
+                    if(match) measuringWaitSeconds = parseInt(match[1]);
+                  }
+
+                  if(isValues) {
+                    // Resolve the pending VALUES promise if waiting
+                    if(window._valuesResolve) {
+                      window._valuesResolve(val);
+                      window._valuesResolve = null;
+                    }
+                  }
+
+                  if(isDir) {
+                    log('[DIR] Received: ' + val);
+                    document.getElementById('dirOutput').innerHTML = renderDirTable(val);
+                  }
+
+                  if(isFile) {
+                    const buf = e.target.value.buffer;
+                    if(window._fileCollector) {
+                      window._fileCollector(buf);
+                    }
+                  }
+
+                  if(isError) {
+                    const lbl = document.getElementById('measuringTimeLabel');
+                    const v = val.trim().toLowerCase();
+                    lbl.style.color = 'var(--danger)';
+                    if(v.includes('waveform') || v.includes('setup error')) {
+                      lbl.textContent = '\u26A0 Waveform setup error';
+                    } else if(v.includes('mem')) {
+                      lbl.textContent = '\u26A0 Not enough memory';
+                    } else {
+                      lbl.textContent = '\u26A0 ' + val.trim();
+                    }
+                  }
+
+                  if(isUser) {
+                    if(val.includes("RSSI")) {
+                      const m = val.match(/RSSI["\s:]+(-?[\d.]+)/i);
+                      if(m) { updateGsbRssi(parseFloat(m[1])); console.log('[USER raw]', val); }
+                    }
+                    if(val.toLowerCase().includes("batt voltage")) {
+                      const m = val.match(/batt Voltage["\s:]+(\d+)/i);
+                      if(m) { updateGsbVbat(parseInt(m[1])); console.log('[USER raw]', val); }
+                    }
+                    if(val.includes("seconds")) {
+                      const s = val.match(/seconds":\s*(\d+)/);
+                      if(s) { updateGsbTime(parseInt(s[1])); console.log('[USER raw]', val); }
+                    }
+                    if(val.includes("AVAILABLE MEM")) {
+                      const m = val.match(/AVAILABLE MEM["\s:]+(\d+)/i);
+                      if(m) { updateGsbMem(parseInt(m[1])); console.log('[USER raw]', val); }
+                    }
+                  }
+              });
+            }
+        });
+
+        await Promise.all(notifyPromises);
+        log('[BLE] All notifications subscribed');
+
+        // Now safe to update UI
+        document.getElementById('btStatus').className = "connected";
+        document.getElementById('connect').style.display = 'none';
+        document.getElementById('disconnect').style.display = 'inline-block';
+
+        // Request device identification
+        if(identChar) {
+          try {
+            await identChar.writeValue(new TextEncoder().encode(''));
+            log('[IDENT] Identification requested');
+          } catch(e) { log('[IDENT] Write error: ' + e); }
+        }
+
+    } catch(e) { log("Connection error: " + e); btn.textContent = 'Connect'; btn.disabled = false; }
+  };
+
+  function onDisconnected() {
+    document.getElementById('btStatus').className = "disconnected";
+    document.getElementById('connect').style.display = 'inline-block';
+    document.getElementById('connect').textContent = 'Connect';
+    document.getElementById('connect').disabled = false;
+    document.getElementById('disconnect').style.display = 'none';
+    document.getElementById('deviceList').innerHTML = "";
+    log("Device disconnected.");
+  }
+
+  // ── Status bar helpers ──────────────────────────────────────────────
+  function rssiClass(dbm) {
+    if (dbm > -60)  return 'rssi-excellent';
+    if (dbm > -75)  return 'rssi-good';
+    if (dbm > -85)  return 'rssi-fair';
+    return 'rssi-poor';
+  }
+
+  function updateGsbRssi(dbm) {
+    const v = document.getElementById('gsbRssi');
+    const d = document.getElementById('gsbRssiDot');
+    const cls = rssiClass(dbm);
+    v.textContent = dbm + ' dBm';
+    v.className = 'gsb-value ' + cls;
+    d.className  = 'gsb-dot '  + cls;
+  }
+
+  function updateGsbVbat(mv) {
+    const v = document.getElementById('gsbVbat');
+    v.innerHTML = (mv / 1000).toFixed(3) + ' V';
+    v.className = 'gsb-value';
+  }
+
+  function updateGsbTime(seconds) {
+    const v = document.getElementById('gsbTime');
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = seconds % 60;
+    v.textContent = h > 0
+      ? `${h}h ${String(m).padStart(2,'0')}m`
+      : `${m}m ${String(s).padStart(2,'0')}s`;
+    v.className = 'gsb-value';
+  }
+
+  function updateGsbMem(bytes) {
+    const v = document.getElementById('gsbMem');
+    v.textContent = bytes >= 1024 ? (bytes / 1024).toFixed(1) + ' KB' : bytes + ' B';
+    v.className = 'gsb-value';
+  }
+
+  async function refreshStatusBar() {
+    const info = document.getElementById('gsbRefreshInfo');
+    info.innerHTML = '<span class="gsb-spinner">↻</span> refreshing...';
+    const enc = new TextEncoder();
+    try {
+      await userChar.writeValue(enc.encode('getrssi'));
+      await new Promise(r => setTimeout(r, 400));
+      await userChar.writeValue(enc.encode('getvbat'));
+      await new Promise(r => setTimeout(r, 400));
+      await userChar.writeValue(enc.encode('gettime'));
+      await new Promise(r => setTimeout(r, 400));
+      await userChar.writeValue(enc.encode('getmem'));
+      const now = new Date().toLocaleTimeString();
+      info.textContent = 'updated ' + now;
+      log('[STATUS] Status bar refreshed');
+    } catch(e) {
+      info.textContent = 'refresh failed';
+      log('[STATUS] Refresh error: ' + e);
+    }
+  }
+  // ────────────────────────────────────────────────────────────────────
+
+  document.getElementById('disconnect').onclick = () => { if(device) device.gatt.disconnect(); };
+
+  document.getElementById('btnPushConfig').onclick = () => {
+    document.getElementById('measuringTimeLabel').textContent = "Syncing with device...";
+    configChar.writeValue(new TextEncoder().encode(document.getElementById('configPreview').textContent));
+  };
+
+  document.getElementById('btnStartMeasurement').onclick = async () => {
+    const btn = document.getElementById('btnStartMeasurement');
+    const statusEl = document.getElementById('measureStatus');
+    const resultsEl = document.getElementById('measureResults');
+
+    btn.disabled = true;
+    btn.style.opacity = '0.5';
+    resultsEl.innerHTML = '';
+
+    const enc = new TextEncoder();
+    const waitMs = (measuringWaitSeconds + 1) * 1000;
+
+    try {
+      // 3.1 Send empty string to MEASURE characteristic
+      statusEl.textContent = '⏳ Starting measurement...';
+      log('[MEASURE] Sending trigger to MEASURE characteristic');
+      await measureChar.writeValue(enc.encode(''));
+
+      // 3.2 Wait measuring time + 1 second
+      statusEl.textContent = `⏳ Measuring... (${measuringWaitSeconds + 1}s)`;
+      log(`[MEASURE] Waiting ${measuringWaitSeconds + 1}s`);
+      await new Promise(r => setTimeout(r, waitMs));
+
+      // Auto-refresh status bar after measurement delay
+      refreshStatusBar();
+
+      // Send empty string to DIR characteristic
+      if(dirChar) {
+        log('[DIR] Requesting DIR data');
+        document.getElementById('dirOutput').textContent = 'Waiting for data...';
+        await dirChar.writeValue(new TextEncoder().encode(''));
+      }
+
+      // 3.3 Send empty string to VALUES characteristic
+      statusEl.textContent = '⏳ Requesting values...';
+      log('[MEASURE] Sending trigger to VALUES characteristic');
+
+      // 3.4 Set up promise to capture the VALUES notification
+      const valuesPromise = new Promise((resolve, reject) => {
+        window._valuesResolve = resolve;
+        setTimeout(() => { window._valuesResolve = null; reject(new Error('Timeout waiting for VALUES')); }, 10000);
+      });
+
+      await valuesChar.writeValue(enc.encode(''));
+
+      // 3.4 Wait for VALUES notification
+      const valuesData = await valuesPromise;
+      _lastValuesRaw = valuesData;
+      _lastMeasureTime = new Date();
+      log('[MEASURE] Values received: ' + valuesData);
+      resultsEl.innerHTML = renderParsedValues(valuesData);
+
+      statusEl.textContent = '✅ Measurement complete';
+      log('[MEASURE] Sequence complete');
+    } catch(e) {
+      statusEl.textContent = '❌ Error: ' + e.message;
+      log('[MEASURE] Error: ' + e);
+    }
+
+    btn.disabled = false;
+    btn.style.opacity = '';
+  };
+
+  document.getElementById('btnAddVar').onclick = () => { document.getElementById('varList').append(makeVarRow()); buildConfig(); };
+  document.getElementById('btnAddBias').onclick = () => { document.getElementById('varList').append(makeSpecialRow('bias')); buildConfig(); };
+  document.getElementById('btnAddTemp').onclick = () => { document.getElementById('varList').append(makeSpecialRow('temp')); buildConfig(); };
+
+  document.querySelectorAll('input[type=number]').forEach(i => i.addEventListener('input', buildConfig));
+  
+  // Seed initial rows
+  (function init() {
+    const l = document.getElementById('varList');
+    l.append(makeVarRow({code:'O',channels:['z'],mag:'a',p1:'10',p2:'6000'}));
+    l.append(makeVarRow({code:'F',channels:['z'],mag:'a',p1:'100',p2:'6000'}));
+    l.append(makeSpecialRow('bias'));
+    buildConfig();
+  })();
+</script>
+</body>
+</html>
