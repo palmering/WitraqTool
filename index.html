@@ -2,6 +2,7 @@
 <html>
 <head>
   <meta charset="utf-8">
+  <link rel="manifest" href="manifest.json">
   <title>Witraq Tool</title>
   <style>
     :root {
@@ -1911,6 +1912,12 @@
     l.append(makeSpecialRow('bias'));
     buildConfig();
   })();
+  // Service worker registration
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/service-worker.js')
+      .then(reg => console.log('Service worker registered:', reg))
+      .catch(err => console.error('Service worker failed:', err));
+  }  
 </script>
 </body>
 </html>
