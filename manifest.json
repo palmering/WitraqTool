@@ -1,7 +1,7 @@
 {
   "name": "Witraq Tool",
   "short_name": "WQTool",
-  "start_url": "/index.html",
+  "start_url": "/WitraqTool/"
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#2196f3",
