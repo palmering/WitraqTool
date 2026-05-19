@@ -2,12 +2,11 @@
   "name": "Witraq Tool",
   "short_name": "WQTool",
   "orientation": "any",
-  "scope": "/",
-  "start_url": "/WitraqTool/"
+  "scope": "/WitraqTool/",
+  "start_url": "/WitraqTool/",
   "dir": "ltr",
   "display": "standalone",
-  "id": "100",
-  "description": "Witraq tool"
+  "description": "Witraq tool",
   "background_color": "#858484",
   "theme_color": "#2196f3",
   "icons": [
