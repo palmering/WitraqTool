@@ -3,7 +3,7 @@
   "short_name": "WQTool",
   "orientation": "any",
   "scope": "/",
-  "start_url": "/"
+  "start_url": "/WitraqTool/"
   "dir": "ltr",
   "display": "standalone",
   "id": "100",
